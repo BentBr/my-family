@@ -124,3 +124,21 @@ debug = "line-tables-only"
 
 [profile.test]
 debug = "line-tables-only"
+
+# Optimize DEPENDENCIES (only) at opt-level 2 in the unoptimized profiles.
+# Our own crates stay at opt-level 0 so incremental rebuilds remain fast,
+# but the runtime-heavy third-party code — sqlx + tokio-postgres (every
+# query), tokio's reactor, serde (every request body), argon-free auth
+# token SHA-256, etc. — runs near release speed. Without this the e2e
+# stack's DEBUG api was pathologically slow under concurrent DB load
+# (the big_family fixture's 50 parallel inserts + 45 SERIALIZABLE
+# parent-link cycle-check txns took ~16 s, and a magic-link consume
+# could queue behind it long enough to blow the signIn redirect budget —
+# the recurring e2e flake). Dependencies are compiled once and cached
+# (CI rust-cache + local target dir), so the one-time cost is amortized
+# while every integration test and local run gets the faster runtime.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.test.package."*"]
+opt-level = 2

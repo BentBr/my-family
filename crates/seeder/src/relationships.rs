@@ -40,10 +40,33 @@ use crate::ids::{
 /// `biological` covers the canonical case. `step` / `adoptive` /
 /// `legal` / `social` are for the edge-case fixtures (Felix's
 /// stepmother, Lena's adoptive parents, etc.).
-struct ParentLinkSeed {
-    child: Uuid,
-    parent: Uuid,
-    kind: &'static str,
+pub(crate) struct ParentLinkSeed {
+    pub(crate) child: Uuid,
+    pub(crate) parent: Uuid,
+    pub(crate) kind: &'static str,
+}
+
+/// Upsert one `parent_link` row. Shared inserter so the anonymized
+/// prod-mirror families ([`crate::vellmar`], [`crate::lang`]) supply
+/// only their own data. `parent_links` has no `family_id` column — it's
+/// scoped implicitly through the `persons` it references.
+///
+/// # Errors
+/// Propagates any Postgres error from the `INSERT … ON CONFLICT`.
+pub(crate) async fn upsert_parent_link(pool: &PgPool, r: &ParentLinkSeed) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO parent_links (child_id, parent_id, kind, note) \
+         VALUES ($1, $2, ($3::text)::parent_link_kind, '') \
+         ON CONFLICT (child_id, parent_id) DO UPDATE SET \
+             kind = EXCLUDED.kind, \
+             note = EXCLUDED.note",
+    )
+    .bind(r.child)
+    .bind(r.parent)
+    .bind(r.kind)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 /// Upsert every seeded `parent_link` row.
@@ -292,34 +315,23 @@ pub async fn seed_parent_links(pool: &PgPool) -> anyhow::Result<()> {
             kind: "biological",
         },
     ];
-    for r in rows {
-        sqlx::query(
-            "INSERT INTO parent_links (child_id, parent_id, kind, note) \
-             VALUES ($1, $2, ($3::text)::parent_link_kind, '') \
-             ON CONFLICT (child_id, parent_id) DO UPDATE SET \
-                 kind = EXCLUDED.kind, \
-                 note = EXCLUDED.note",
-        )
-        .bind(r.child)
-        .bind(r.parent)
-        .bind(r.kind)
-        .execute(pool)
-        .await?;
+    for r in &rows {
+        upsert_parent_link(pool, r).await?;
     }
     Ok(())
 }
 
 /// One partnership row. `started_on` + `ended_on` + `end_reason` cover
 /// the open / divorced / widowed cases the FE relations panel renders.
-struct PartnershipSeed {
-    id: Uuid,
-    partner_a: Uuid,
-    partner_b: Uuid,
-    kind: &'static str,
-    started_on: Option<NaiveDate>,
-    ended_on: Option<NaiveDate>,
-    end_reason: Option<&'static str>,
-    note: &'static str,
+pub(crate) struct PartnershipSeed {
+    pub(crate) id: Uuid,
+    pub(crate) partner_a: Uuid,
+    pub(crate) partner_b: Uuid,
+    pub(crate) kind: &'static str,
+    pub(crate) started_on: Option<NaiveDate>,
+    pub(crate) ended_on: Option<NaiveDate>,
+    pub(crate) end_reason: Option<&'static str>,
+    pub(crate) note: &'static str,
 }
 
 #[allow(
@@ -611,41 +623,74 @@ pub async fn seed_partnerships(pool: &PgPool) -> anyhow::Result<()> {
             note: "Falke parents (Edgar + Gisela); three-gen lineage chain demo.",
         },
     ];
-    for p in rows {
-        sqlx::query(
-            "INSERT INTO partnerships \
-                 (id, family_id, partner_a_id, partner_b_id, kind, started_on, ended_on, \
-                  end_reason, note) \
-             VALUES ($1, $2, $3, $4, ($5::text)::partnership_kind, $6, $7, \
-                     $8::text::partnership_end_reason, $9) \
-             ON CONFLICT (id) DO UPDATE SET \
-                 family_id = EXCLUDED.family_id, \
-                 partner_a_id = EXCLUDED.partner_a_id, \
-                 partner_b_id = EXCLUDED.partner_b_id, \
-                 kind = EXCLUDED.kind, \
-                 started_on = EXCLUDED.started_on, \
-                 ended_on = EXCLUDED.ended_on, \
-                 end_reason = EXCLUDED.end_reason, \
-                 note = EXCLUDED.note",
-        )
-        .bind(p.id)
-        .bind(SEED_FAMILY_ID)
-        .bind(p.partner_a)
-        .bind(p.partner_b)
-        .bind(p.kind)
-        .bind(p.started_on)
-        .bind(p.ended_on)
-        .bind(p.end_reason)
-        .bind(p.note)
+    for p in &rows {
+        upsert_partnership(pool, SEED_FAMILY_ID, p).await?;
+    }
+    Ok(())
+}
+
+/// Delete every partnership in `family_id` whose id is not in `keep`,
+/// then return — the inverse-cleanup half of a family's partnership
+/// reset. Shared so each seeded family resets only its own rows.
+///
+/// # Errors
+/// Propagates any Postgres error from the `DELETE`.
+pub(crate) async fn delete_non_seed_partnerships(
+    pool: &PgPool,
+    family_id: Uuid,
+    keep: &[Uuid],
+) -> anyhow::Result<()> {
+    sqlx::query("DELETE FROM partnerships WHERE family_id = $1 AND id <> ALL($2)")
+        .bind(family_id)
+        .bind(keep)
         .execute(pool)
         .await?;
-    }
+    Ok(())
+}
+
+/// Upsert one partnership row into `family_id`. Shared inserter so the
+/// anonymized prod-mirror families supply only their own data.
+///
+/// # Errors
+/// Propagates any Postgres error from the `INSERT … ON CONFLICT`.
+pub(crate) async fn upsert_partnership(
+    pool: &PgPool,
+    family_id: Uuid,
+    p: &PartnershipSeed,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO partnerships \
+             (id, family_id, partner_a_id, partner_b_id, kind, started_on, ended_on, \
+              end_reason, note) \
+         VALUES ($1, $2, $3, $4, ($5::text)::partnership_kind, $6, $7, \
+                 $8::text::partnership_end_reason, $9) \
+         ON CONFLICT (id) DO UPDATE SET \
+             family_id = EXCLUDED.family_id, \
+             partner_a_id = EXCLUDED.partner_a_id, \
+             partner_b_id = EXCLUDED.partner_b_id, \
+             kind = EXCLUDED.kind, \
+             started_on = EXCLUDED.started_on, \
+             ended_on = EXCLUDED.ended_on, \
+             end_reason = EXCLUDED.end_reason, \
+             note = EXCLUDED.note",
+    )
+    .bind(p.id)
+    .bind(family_id)
+    .bind(p.partner_a)
+    .bind(p.partner_b)
+    .bind(p.kind)
+    .bind(p.started_on)
+    .bind(p.ended_on)
+    .bind(p.end_reason)
+    .bind(p.note)
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
 /// Return `(min, max)` of the two UUIDs so partnership rows satisfy the
 /// `partner_a_id < partner_b_id` CHECK constraint.
-const fn order_pair(a: Uuid, b: Uuid) -> (Uuid, Uuid) {
+pub(crate) const fn order_pair(a: Uuid, b: Uuid) -> (Uuid, Uuid) {
     if a.as_u128() < b.as_u128() { (a, b) } else { (b, a) }
 }
 

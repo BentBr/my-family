@@ -33,14 +33,16 @@ use uuid::Uuid;
 
 pub mod contacts;
 pub mod ids;
+pub mod lang;
 pub mod persons;
 pub mod relationships;
+pub mod vellmar;
 
 // Re-export the public UUIDs so call sites (and tests) keep the old import
 // path `my_fam_tree_seeder::SEED_…_ID` working.
 pub use ids::{
-    SEED_ADMIN_USER_ID, SEED_ALICE_USER_ID, SEED_BOB_USER_ID, SEED_FAMILY_ID,
-    SEED_PARTNERSHIP_FRIEDRICH_LOTTE_ID, SEED_PARTNERSHIP_KLAUS_ANNA_ID,
+    SEED_ADMIN_USER_ID, SEED_ALICE_USER_ID, SEED_BOB_USER_ID, SEED_FAMILY_ID, SEED_FAMILY_LANG_ID,
+    SEED_FAMILY_VELLMAR_ID, SEED_PARTNERSHIP_FRIEDRICH_LOTTE_ID, SEED_PARTNERSHIP_KLAUS_ANNA_ID,
     SEED_PARTNERSHIP_KLAUS_BRIGITTE_ID, SEED_PARTNERSHIP_OTTO_HANNELORE_ID,
     SEED_PARTNERSHIP_SABINE_JULIA_ID, SEED_PARTNERSHIP_WERNER_GRETA_ID, SEED_PERSON_ANNA_ID,
     SEED_PERSON_BRIGITTE_ID, SEED_PERSON_COUNT, SEED_PERSON_EMMA_ID, SEED_PERSON_FELIX_ID,
@@ -76,17 +78,22 @@ pub struct SeedReport {
 /// Propagates any Postgres error from the upsert statements or magic-link mint.
 pub async fn run_seed(pool: &PgPool, cfg: &Config) -> anyhow::Result<SeedReport> {
     seed_users(pool).await.context("seed users")?;
-    seed_family(pool).await.context("seed family")?;
+    seed_families(pool).await.context("seed families")?;
     seed_memberships(pool).await.context("seed family_memberships")?;
     persons::seed_persons(pool).await.context("seed persons")?;
     relationships::seed_parent_links(pool).await.context("seed parent_links")?;
     relationships::seed_partnerships(pool).await.context("seed partnerships")?;
     contacts::seed_contacts(pool).await.context("seed person_contacts")?;
+    // Anonymized mirrors of two real prod trees — own persons +
+    // relationships, each self-contained and family-scoped.
+    vellmar::seed(pool).await.context("seed Vellmar family")?;
+    lang::seed(pool).await.context("seed Lang family")?;
 
     let magic_links_repo: Arc<dyn MagicLinkRepo> = Arc::new(PgMagicLinkRepo::new(pool.clone()));
     let magic_links = mint_magic_links(&magic_links_repo, cfg).await.context("mint magic links")?;
 
-    Ok(SeedReport { users_upserted: 3, persons_upserted: SEED_PERSON_COUNT, magic_links })
+    let persons_upserted = SEED_PERSON_COUNT + vellmar::PERSON_COUNT + lang::PERSON_COUNT;
+    Ok(SeedReport { users_upserted: 3, persons_upserted, magic_links })
 }
 
 async fn seed_users(pool: &PgPool) -> anyhow::Result<()> {
@@ -114,34 +121,46 @@ async fn seed_users(pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn seed_family(pool: &PgPool) -> anyhow::Result<()> {
-    sqlx::query(
-        "INSERT INTO families (id, name, created_by) VALUES ($1, $2, $3) \
-         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name",
-    )
-    .bind(SEED_FAMILY_ID)
-    .bind("Müller")
-    .bind(SEED_ADMIN_USER_ID)
-    .execute(pool)
-    .await?;
+async fn seed_families(pool: &PgPool) -> anyhow::Result<()> {
+    // (id, name). All three created by the admin user.
+    let rows: [(Uuid, &str); 3] = [
+        (SEED_FAMILY_ID, "Müller"),
+        (ids::SEED_FAMILY_VELLMAR_ID, "Vellmar"),
+        (ids::SEED_FAMILY_LANG_ID, "Lang"),
+    ];
+    for (id, name) in rows {
+        sqlx::query(
+            "INSERT INTO families (id, name, created_by) VALUES ($1, $2, $3) \
+             ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name",
+        )
+        .bind(id)
+        .bind(name)
+        .bind(SEED_ADMIN_USER_ID)
+        .execute(pool)
+        .await?;
+    }
     Ok(())
 }
 
 async fn seed_memberships(pool: &PgPool) -> anyhow::Result<()> {
-    // (user_id, role).
-    let rows: [(Uuid, &str); 3] =
+    // Every seeded user is a member of every seeded family so all three
+    // trees are switchable in the app. (user_id, role) per family.
+    let members: [(Uuid, &str); 3] =
         [(SEED_ADMIN_USER_ID, "owner"), (SEED_ALICE_USER_ID, "admin"), (SEED_BOB_USER_ID, "user")];
-    for (user_id, role) in rows {
-        sqlx::query(
-            "INSERT INTO family_memberships (family_id, user_id, role) \
-             VALUES ($1, $2, ($3::text)::family_role) \
-             ON CONFLICT (family_id, user_id) DO UPDATE SET role = EXCLUDED.role",
-        )
-        .bind(SEED_FAMILY_ID)
-        .bind(user_id)
-        .bind(role)
-        .execute(pool)
-        .await?;
+    let families = [SEED_FAMILY_ID, ids::SEED_FAMILY_VELLMAR_ID, ids::SEED_FAMILY_LANG_ID];
+    for family_id in families {
+        for (user_id, role) in members {
+            sqlx::query(
+                "INSERT INTO family_memberships (family_id, user_id, role) \
+                 VALUES ($1, $2, ($3::text)::family_role) \
+                 ON CONFLICT (family_id, user_id) DO UPDATE SET role = EXCLUDED.role",
+            )
+            .bind(family_id)
+            .bind(user_id)
+            .bind(role)
+            .execute(pool)
+            .await?;
+        }
     }
     Ok(())
 }
@@ -177,7 +196,8 @@ async fn mint_magic_links(
     clippy::indexing_slicing,
     clippy::panic,
     clippy::future_not_send,
-    reason = "test code: container setup + assertion helpers may panic and aren't Send-bounded"
+    clippy::cast_possible_wrap,
+    reason = "test code: container setup + assertion helpers may panic; seed counts are tiny so the usize→i64 cast can't wrap"
 )]
 mod tests {
     use std::time::Duration;
@@ -191,11 +211,13 @@ mod tests {
 
     use super::*;
 
-    // Expected row counts mirror the canonical seed shape. Update these
-    // numbers whenever the persons / parent_links / partnerships tables in
-    // the corresponding seed module grow or shrink.
-    const EXPECTED_PARENT_LINKS: i64 = 44;
-    const EXPECTED_PARTNERSHIPS: i64 = 18;
+    // Expected row counts mirror the canonical seed shape across ALL
+    // three seeded families (Müller + Vellmar + Lang). Update these
+    // numbers whenever any seed module's tables grow or shrink.
+    const EXPECTED_PERSONS: i64 =
+        SEED_PERSON_COUNT as i64 + vellmar::PERSON_COUNT as i64 + lang::PERSON_COUNT as i64;
+    const EXPECTED_PARENT_LINKS: i64 = 44 + vellmar::PARENT_LINK_COUNT + lang::PARENT_LINK_COUNT;
+    const EXPECTED_PARTNERSHIPS: i64 = 18 + vellmar::PARTNERSHIP_COUNT;
     const EXPECTED_CONTACTS: i64 = 9;
 
     struct Harness {
@@ -305,11 +327,13 @@ mod tests {
         let report = run_seed(&h.pool, &h.cfg).await.expect("seed");
 
         assert_eq!(report.users_upserted, 3);
-        assert_eq!(report.persons_upserted, SEED_PERSON_COUNT);
+        assert_eq!(report.persons_upserted, usize::try_from(EXPECTED_PERSONS).unwrap());
         assert_eq!(count(&h.pool, Table::Users).await, 3);
-        assert_eq!(count(&h.pool, Table::Families).await, 1);
-        assert_eq!(count(&h.pool, Table::FamilyMemberships).await, 3);
-        assert_eq!(count(&h.pool, Table::Persons).await, i64::try_from(SEED_PERSON_COUNT).unwrap());
+        // Three seeded families (Müller + Vellmar + Lang); every user is
+        // a member of every family → 3 × 3 memberships.
+        assert_eq!(count(&h.pool, Table::Families).await, 3);
+        assert_eq!(count(&h.pool, Table::FamilyMemberships).await, 9);
+        assert_eq!(count(&h.pool, Table::Persons).await, EXPECTED_PERSONS);
         assert_eq!(count(&h.pool, Table::ParentLinks).await, EXPECTED_PARENT_LINKS);
         assert_eq!(count(&h.pool, Table::Partnerships).await, EXPECTED_PARTNERSHIPS);
         assert_eq!(count(&h.pool, Table::PersonContacts).await, EXPECTED_CONTACTS);
@@ -330,9 +354,9 @@ mod tests {
 
         // Row counts unchanged after a second invocation.
         assert_eq!(count(&h.pool, Table::Users).await, 3);
-        assert_eq!(count(&h.pool, Table::Families).await, 1);
-        assert_eq!(count(&h.pool, Table::FamilyMemberships).await, 3);
-        assert_eq!(count(&h.pool, Table::Persons).await, i64::try_from(SEED_PERSON_COUNT).unwrap());
+        assert_eq!(count(&h.pool, Table::Families).await, 3);
+        assert_eq!(count(&h.pool, Table::FamilyMemberships).await, 9);
+        assert_eq!(count(&h.pool, Table::Persons).await, EXPECTED_PERSONS);
         assert_eq!(count(&h.pool, Table::ParentLinks).await, EXPECTED_PARENT_LINKS);
         assert_eq!(count(&h.pool, Table::Partnerships).await, EXPECTED_PARTNERSHIPS);
         assert_eq!(count(&h.pool, Table::PersonContacts).await, EXPECTED_CONTACTS);

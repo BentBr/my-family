@@ -46,25 +46,25 @@ use crate::ids::{
 /// than child; biological parents alive at conception; partnership starts
 /// after both partners' birthdays) so future flows that re-run validation
 /// against the seeded graph never fail.
-struct PersonSeed {
-    id: Uuid,
-    given: &'static str,
-    family: &'static str,
-    name_at_birth: &'static str,
-    nickname: &'static str,
-    gender: &'static str,
-    birth_date: NaiveDate,
-    birth_place: &'static str,
-    death_date: Option<NaiveDate>,
-    notes: &'static str,
-    linked_user_id: Option<Uuid>,
+pub(crate) struct PersonSeed {
+    pub(crate) id: Uuid,
+    pub(crate) given: &'static str,
+    pub(crate) family: &'static str,
+    pub(crate) name_at_birth: &'static str,
+    pub(crate) nickname: &'static str,
+    pub(crate) gender: &'static str,
+    pub(crate) birth_date: NaiveDate,
+    pub(crate) birth_place: &'static str,
+    pub(crate) death_date: Option<NaiveDate>,
+    pub(crate) notes: &'static str,
+    pub(crate) linked_user_id: Option<Uuid>,
 }
 
 #[allow(
     clippy::panic,
     reason = "const-fn date constructor: arguments are static literals validated at build time"
 )]
-const fn ymd(y: i32, m: u32, d: u32) -> NaiveDate {
+pub(crate) const fn ymd(y: i32, m: u32, d: u32) -> NaiveDate {
     match NaiveDate::from_ymd_opt(y, m, d) {
         Some(date) => date,
         None => panic!("static seed date must be valid"),
@@ -823,46 +823,77 @@ pub async fn seed_persons(pool: &PgPool) -> anyhow::Result<()> {
     // nukes any user-added person rows on a re-seed, matching the
     // partnership-reset behaviour already in `seed_partnerships`.
     let seed_ids: Vec<Uuid> = rows.iter().map(|p| p.id).collect();
-    sqlx::query("DELETE FROM persons WHERE family_id = $1 AND id <> ALL($2)")
-        .bind(SEED_FAMILY_ID)
-        .bind(&seed_ids[..])
-        .execute(pool)
-        .await?;
+    delete_non_seed_persons(pool, SEED_FAMILY_ID, &seed_ids).await?;
 
-    for p in rows {
-        sqlx::query(
-            "INSERT INTO persons \
-                 (id, family_id, given_name, family_name, name_at_birth, nickname, gender, \
-                  birth_date, birth_place, death_date, notes, \
-                  linked_user_id) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) \
-             ON CONFLICT (id) DO UPDATE SET \
-                 family_id = EXCLUDED.family_id, \
-                 given_name = EXCLUDED.given_name, \
-                 family_name = EXCLUDED.family_name, \
-                 name_at_birth = EXCLUDED.name_at_birth, \
-                 nickname = EXCLUDED.nickname, \
-                 gender = EXCLUDED.gender, \
-                 birth_date = EXCLUDED.birth_date, \
-                 birth_place = EXCLUDED.birth_place, \
-                 death_date = EXCLUDED.death_date, \
-                 notes = EXCLUDED.notes, \
-                 linked_user_id = EXCLUDED.linked_user_id",
-        )
-        .bind(p.id)
-        .bind(SEED_FAMILY_ID)
-        .bind(p.given)
-        .bind(p.family)
-        .bind(p.name_at_birth)
-        .bind(p.nickname)
-        .bind(p.gender)
-        .bind(p.birth_date)
-        .bind(p.birth_place)
-        .bind(p.death_date)
-        .bind(p.notes)
-        .bind(p.linked_user_id)
+    for p in &rows {
+        upsert_person(pool, SEED_FAMILY_ID, p).await?;
+    }
+    Ok(())
+}
+
+/// Wipe every person in `family_id` whose id is not in `keep`. The
+/// `ON DELETE CASCADE` rules on `parent_links` / `partnerships` /
+/// `person_contacts` / `person_favourites` drop the dependent graph in
+/// the same statement. Shared by all seeded families (Müller + the
+/// anonymized prod mirrors in [`crate::vellmar`] / [`crate::lang`]).
+///
+/// # Errors
+/// Propagates any Postgres error from the `DELETE`.
+pub(crate) async fn delete_non_seed_persons(
+    pool: &PgPool,
+    family_id: Uuid,
+    keep: &[Uuid],
+) -> anyhow::Result<()> {
+    sqlx::query("DELETE FROM persons WHERE family_id = $1 AND id <> ALL($2)")
+        .bind(family_id)
+        .bind(keep)
         .execute(pool)
         .await?;
-    }
+    Ok(())
+}
+
+/// Upsert one person row into `family_id`. Shared inserter so each
+/// seeded family supplies only its own [`PersonSeed`] data.
+///
+/// # Errors
+/// Propagates any Postgres error from the `INSERT … ON CONFLICT`.
+pub(crate) async fn upsert_person(
+    pool: &PgPool,
+    family_id: Uuid,
+    p: &PersonSeed,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO persons \
+             (id, family_id, given_name, family_name, name_at_birth, nickname, gender, \
+              birth_date, birth_place, death_date, notes, \
+              linked_user_id) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) \
+         ON CONFLICT (id) DO UPDATE SET \
+             family_id = EXCLUDED.family_id, \
+             given_name = EXCLUDED.given_name, \
+             family_name = EXCLUDED.family_name, \
+             name_at_birth = EXCLUDED.name_at_birth, \
+             nickname = EXCLUDED.nickname, \
+             gender = EXCLUDED.gender, \
+             birth_date = EXCLUDED.birth_date, \
+             birth_place = EXCLUDED.birth_place, \
+             death_date = EXCLUDED.death_date, \
+             notes = EXCLUDED.notes, \
+             linked_user_id = EXCLUDED.linked_user_id",
+    )
+    .bind(p.id)
+    .bind(family_id)
+    .bind(p.given)
+    .bind(p.family)
+    .bind(p.name_at_birth)
+    .bind(p.nickname)
+    .bind(p.gender)
+    .bind(p.birth_date)
+    .bind(p.birth_place)
+    .bind(p.death_date)
+    .bind(p.notes)
+    .bind(p.linked_user_id)
+    .execute(pool)
+    .await?;
     Ok(())
 }

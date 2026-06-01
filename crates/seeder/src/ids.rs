@@ -26,8 +26,20 @@ pub const SEED_ALICE_USER_ID: Uuid = Uuid::from_u128(0x0000_0001_0000_0000_0000_
 /// Seeded user "Bob" (user role).
 pub const SEED_BOB_USER_ID: Uuid = Uuid::from_u128(0x0000_0001_0000_0000_0000_0000_0000_0003);
 
-/// The single seeded family.
+/// The original seeded family ("Müller") — synthetic edge-case fixtures.
 pub const SEED_FAMILY_ID: Uuid = Uuid::from_u128(0x0000_0002_0000_0000_0000_0000_0000_0001);
+/// Second seeded family ("Vellmar").
+///
+/// Anonymized mirror of a real prod tree (names + places changed,
+/// structure + dates preserved). Reproduces the multi-couple-chain +
+/// bridging-couple layout cases. See [`crate::vellmar`].
+pub const SEED_FAMILY_VELLMAR_ID: Uuid = Uuid::from_u128(0x0000_0002_0000_0000_0000_0000_0000_0002);
+/// Third seeded family ("Lang").
+///
+/// Anonymized mirror of a real prod tree that has NO partnership rows
+/// (co-parents linked only via shared children). Reproduces the
+/// missing-partnership-edge layout case. See [`crate::lang`].
+pub const SEED_FAMILY_LANG_ID: Uuid = Uuid::from_u128(0x0000_0002_0000_0000_0000_0000_0000_0003);
 
 // ---------------------------------------------------------------------------
 // Persons — original 8
@@ -238,6 +250,7 @@ pub const SEED_PARTNERSHIP_STB_FELIX_BEATE_ID: Uuid =
 pub const SEED_PARTNERSHIP_FLK_EDGAR_GISELA_ID: Uuid =
     Uuid::from_u128(0x0000_0004_0000_0000_0000_0000_0000_0014);
 
-/// Expected counts for the deterministic seed — surfaced for the test
-/// asserts so they don't drift from the actual data.
+/// Expected count for the original Müller family seed — surfaced for the
+/// test asserts so they don't drift from the actual data. The Vellmar +
+/// Lang families track their own counts in their modules.
 pub const SEED_PERSON_COUNT: usize = 50;

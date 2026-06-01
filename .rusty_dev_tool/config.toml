@@ -71,12 +71,15 @@ no_docker_compose = true
     [commands.seed]
         "description" = "Run the deterministic seed (idempotent UPSERTs; prints MAGIC_LINK URLs)"
         "alias" = "seed"
-        "execution"  = "docker compose run --rm seeder"
+        # `--build` so a seed run always reflects the current crates/seeder/
+        # source. Without it `docker compose run` reuses a cached image and
+        # silently seeds stale data after a seed-code change.
+        "execution"  = "docker compose run --build --rm seeder"
 
     [commands.reset]
         "description" = "Drop all dev volumes and re-migrate + re-seed from scratch"
         "alias" = "reset"
-        "execution"  = "docker compose down -v && docker compose up -d postgres redis mailpit && docker compose run --rm migrator && docker compose run --rm seeder"
+        "execution"  = "docker compose down -v && docker compose up -d postgres redis mailpit && docker compose run --build --rm migrator && docker compose run --build --rm seeder"
 
     [commands.deny]
         "description" = "cargo-deny + cargo-machete supply-chain checks"

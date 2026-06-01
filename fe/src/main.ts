@@ -15,6 +15,7 @@ import './design-system/tokens.css'
 import './design-system/transitions.css'
 import { i18n } from './i18n'
 import { router } from './router'
+import { installChunkReload } from './router/chunkReload'
 import { useLocaleStore } from './stores/locale'
 
 // Vuetify's IconSet#component is typed as `JSXComponent<IconProps>` (a class
@@ -49,5 +50,10 @@ app.use(VueQueryPlugin, { queryClient })
 app.use(createHead())
 
 useLocaleStore().bindToI18n(i18n)
+
+// Auto-reload a tab whose lazy route chunk 404s after a deploy (see
+// chunkReload.ts). Registered before mount so the very first navigation
+// is covered.
+installChunkReload(router)
 
 app.mount('#app')

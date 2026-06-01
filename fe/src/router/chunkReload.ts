@@ -64,20 +64,29 @@ export function shouldTriggerReload(store: Pick<Storage, 'getItem' | 'setItem'>,
  */
 export function isChunkLoadError(error: unknown): boolean {
     const msg = error instanceof Error ? error.message : String(error)
-    return /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|dynamically imported module/i.test(
+    return /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|dynamically imported module|failed to load module script|expected a javascript module script/i.test(
         msg,
     )
 }
 
-function reloadOnceForStaleChunks(): void {
-    if (typeof window === 'undefined') return
+/**
+ * Reload the page once if the loop guard permits. Returns whether a
+ * reload was actually triggered, so callers can decide whether to
+ * suppress the underlying error (only suppress when we're recovering).
+ */
+function reloadOnceForStaleChunks(): boolean {
+    if (typeof window === 'undefined') return false
     let store: Storage
     try {
         store = window.sessionStorage
     } catch {
-        return // no guardable store → don't risk a reload loop
+        return false // no guardable store → don't risk a reload loop
     }
-    if (shouldTriggerReload(store, Date.now())) window.location.reload()
+    if (shouldTriggerReload(store, Date.now())) {
+        window.location.reload()
+        return true
+    }
+    return false
 }
 
 /**
@@ -87,11 +96,13 @@ function reloadOnceForStaleChunks(): void {
 export function installChunkReload(router: Router): void {
     if (typeof window !== 'undefined') {
         // Vite's dedicated signal: a dynamically-imported chunk failed to
-        // load (404 after a deploy rotated the hashes). preventDefault
-        // tells Vite we've handled it so it doesn't also rethrow.
+        // load (404 after a deploy rotated the hashes). Only call
+        // preventDefault — which suppresses Vite's default rethrow — when
+        // we ACTUALLY reload. If the loop guard or blocked storage
+        // declines the reload, let the error propagate so the user gets a
+        // real failure signal instead of a silently-swallowed dead page.
         window.addEventListener('vite:preloadError', ((event: Event) => {
-            event.preventDefault()
-            reloadOnceForStaleChunks()
+            if (reloadOnceForStaleChunks()) event.preventDefault()
         }) as EventListener)
     }
     // Belt-and-braces: a lazy route component import that rejects also

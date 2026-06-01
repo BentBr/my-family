@@ -61,6 +61,21 @@ describe('isChunkLoadError (precision: only chunk-load failures)', () => {
         expect(isChunkLoadError(new Error('Importing a module script failed.'))).toBe(true)
     })
 
+    it('matches module-script / MIME failures (a missing chunk served as HTML)', () => {
+        // Chrome/Safari when a deleted chunk URL falls through to the SPA
+        // index.html and is served with a text/html MIME type.
+        expect(isChunkLoadError(new Error('Failed to load module script: Expected a JavaScript module script.'))).toBe(
+            true,
+        )
+        expect(
+            isChunkLoadError(
+                new Error(
+                    "Expected a JavaScript module script but the server responded with a MIME type of 'text/html'.",
+                ),
+            ),
+        ).toBe(true)
+    })
+
     it('does NOT match ordinary in-app errors', () => {
         expect(isChunkLoadError(new Error('Cannot read properties of undefined'))).toBe(false)
         expect(isChunkLoadError(new Error('Navigation aborted'))).toBe(false)

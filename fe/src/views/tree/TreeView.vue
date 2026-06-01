@@ -46,6 +46,20 @@ const centerFromUrl = computed<string | null>(() => {
 const selectedId = ref<string | null>(null)
 const creating = ref(false)
 
+// Highlight mode: clicking a person pins their direct-line lineage
+// (lit, sticky across pan/zoom) instead of opening the detail drawer.
+// Toggling it on closes any open drawer so the two interaction modes
+// don't fight; FamilyTree clears its own pin when the mode flips off.
+const highlightMode = ref(false)
+function toggleHighlightMode(): void {
+    highlightMode.value = !highlightMode.value
+    if (highlightMode.value) {
+        selectedId.value = null
+        creating.value = false
+        selectInUrl(null)
+    }
+}
+
 /**
  * Center-on-member resolution order:
  *   1. ?center=<personId> in the URL (deep link or persisted selection).
@@ -174,6 +188,37 @@ watch([isMounted, centerFromUrl] as const, ([mounted, target]) => {
             >
                 {{ t('tree.fitToView') }}
             </v-btn>
+            <!-- Highlight-mode toggle. When ON, clicking a person pins
+                 their direct-line lineage (lit + sticky while panning)
+                 instead of opening the detail drawer — for tracing who's
+                 related up/down the line. Desktop: labelled toggle next
+                 to Fit-to-view; mobile: icon-only next to Add-person.
+                 The filled (flat/primary) variant signals the active
+                 state; text variant when off. -->
+            <v-btn
+                v-if="!smAndDown && tree.data.value !== undefined && tree.data.value.nodes.length > 0"
+                prepend-icon="waypoints"
+                :variant="highlightMode ? 'flat' : 'text'"
+                :color="highlightMode ? 'primary' : undefined"
+                :active="highlightMode"
+                :title="t('tree.highlightMode')"
+                data-testid="tree-highlight-mode"
+                @click="toggleHighlightMode"
+            >
+                {{ t('tree.highlightMode') }}
+            </v-btn>
+            <v-btn
+                v-if="smAndDown && tree.data.value !== undefined && tree.data.value.nodes.length > 0"
+                icon="waypoints"
+                :variant="highlightMode ? 'flat' : 'text'"
+                :color="highlightMode ? 'primary' : undefined"
+                :active="highlightMode"
+                size="default"
+                :title="t('tree.highlightMode')"
+                :aria-label="t('tree.highlightMode')"
+                data-testid="tree-highlight-mode"
+                @click="toggleHighlightMode"
+            />
             <!-- Add-person CTA. Single button across breakpoints, sitting
                  in the toolbar row next to the title:
                    - smAndDown: orange circular icon-only button (FAB-styled
@@ -251,6 +296,7 @@ watch([isMounted, centerFromUrl] as const, ([mounted, target]) => {
                     :selected-id="selectedId"
                     :center-on-id="centerOnId"
                     :current-user-id="auth.user?.id ?? null"
+                    :highlight-mode="highlightMode"
                     @select="onSelect"
                     @toggle-favourite="onToggleFavourite"
                 />

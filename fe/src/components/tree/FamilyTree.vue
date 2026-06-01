@@ -11,21 +11,33 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { layoutTree, NODE_H, NODE_W, type Positioned, type TreeInput } from './layout'
 import TreeEdge from './TreeEdge.vue'
 import TreeNode from './TreeNode.vue'
+import { computeLineageIds, isLineageEdge } from './useLineage'
 
-const props = defineProps<{
-    tree: TreeInput
-    selectedId: string | null
-    /** When set, centers the viewport on this person on mount and on subsequent change. */
-    centerOnId: string | null
-    /**
-     * `users.id` of the signed-in user. Compared against each TreeNode's
-     * `linked_user_id` to flag the "this is you" card. Decoupled from
-     * `centerOnId`: an explicit `?center=` deep-link or persisted focus
-     * may point to a different person, but the user-highlight should
-     * always track the signed-in user.
-     */
-    currentUserId: string | null
-}>()
+const props = withDefaults(
+    defineProps<{
+        tree: TreeInput
+        selectedId: string | null
+        /** When set, centers the viewport on this person on mount and on subsequent change. */
+        centerOnId: string | null
+        /**
+         * `users.id` of the signed-in user. Compared against each TreeNode's
+         * `linked_user_id` to flag the "this is you" card. Decoupled from
+         * `centerOnId`: an explicit `?center=` deep-link or persisted focus
+         * may point to a different person, but the user-highlight should
+         * always track the signed-in user.
+         */
+        currentUserId: string | null
+        /**
+         * "Highlight mode": when true, clicking a person PINS them (and their
+         * direct lineage stays lit) instead of opening the detail drawer, so
+         * the user can pan/zoom around and keep tracing the line. Hover is
+         * ignored while pinned so the highlight survives scrolling. When the
+         * mode flips off the pin is cleared.
+         */
+        highlightMode?: boolean
+    }>(),
+    { highlightMode: false },
+)
 
 const emit = defineEmits<{
     (e: 'select', id: string): void
@@ -43,91 +55,50 @@ const layout = computed(() => layoutTree(props.tree))
 // Driven by the `hover` event each `TreeNode` emits on mouseenter / mouseleave.
 const hoverId = ref<string | null>(null)
 
+// Highlight-mode pin: the person clicked while highlight mode is on. Their
+// lineage stays lit until they're clicked again (toggle off) or a different
+// person is clicked. Cleared whenever the mode flips off.
+const pinnedId = ref<string | null>(null)
+watch(
+    () => props.highlightMode,
+    (on) => {
+        if (!on) pinnedId.value = null
+    },
+)
+
 /**
- * Lineage-relation id set for the hovered node. Walks the parent_ids
- * graph upward to gather every ancestor and downward to gather every
- * descendant, then folds in partners (just the direct ones — a
- * spouse's lineage is their own story). The hovered node itself is
- * excluded from the set so it can still get the `.hovered` treatment
- * separately from `.related`.
- *
- * Inputs the layout already gives us:
- *   - `n.parent_ids`  → walk up
- *   - persons whose `parent_ids.includes(id)` → walk down
- *   - `n.partner_ids` → adjacent
- *
- * Cycle-safe: the visited set short-circuits any back-edges so a
- * malformed graph can never spin forever.
+ * The person whose lineage is currently lit. In highlight mode that's
+ * the PINNED person (sticky — hover is ignored so the highlight survives
+ * panning). Otherwise it tracks the hovered person.
  */
-const relatedIds = computed<Set<string>>(() => {
-    const id = hoverId.value
-    if (id === null) return new Set<string>()
-    const target = props.tree.nodes.find((n) => n.id === id)
-    if (target === undefined) return new Set<string>()
+const focusId = computed<string | null>(() => (props.highlightMode ? pinnedId.value : hoverId.value))
 
-    // Build a quick parent → child index once so the descendant walk is
-    // linear per node, not O(N) per step.
-    const childrenOf = new Map<string, string[]>()
-    for (const n of props.tree.nodes) {
-        for (const p of n.parent_ids) {
-            const bucket = childrenOf.get(p)
-            if (bucket === undefined) {
-                childrenOf.set(p, [n.id])
-            } else {
-                bucket.push(n.id)
-            }
-        }
-    }
-    const nodeById = new Map(props.tree.nodes.map((n) => [n.id, n]))
-
-    const visited = new Set<string>([id])
-    const out = new Set<string>()
-
-    // Ancestors — repeated `parent_ids` until exhausted.
-    const upQueue: string[] = [...target.parent_ids]
-    while (upQueue.length > 0) {
-        const cur = upQueue.shift() as string
-        if (visited.has(cur)) continue
-        visited.add(cur)
-        out.add(cur)
-        const node = nodeById.get(cur)
-        if (node !== undefined) upQueue.push(...node.parent_ids)
-    }
-
-    // Descendants — BFS over the parent→child index.
-    const downQueue: string[] = [...(childrenOf.get(id) ?? [])]
-    while (downQueue.length > 0) {
-        const cur = downQueue.shift() as string
-        if (visited.has(cur)) continue
-        visited.add(cur)
-        out.add(cur)
-        downQueue.push(...(childrenOf.get(cur) ?? []))
-    }
-
-    // Direct partners (not their lineage — that's a different family).
-    for (const pid of target.partner_ids) out.add(pid)
-
-    out.delete(id)
-    return out
-})
+/**
+ * Lineage-relation id set for the focus person (ancestors + descendants
+ * + direct partners; focus id excluded). See `computeLineageIds`.
+ */
+const relatedIds = computed<Set<string>>(() => computeLineageIds(props.tree.nodes, focusId.value))
 
 function onNodeHover(id: string | null): void {
     hoverId.value = id
 }
 
 /**
- * Whether an edge connects two nodes inside the hovered lineage —
- * i.e. both endpoints are either the hovered node itself or in the
- * related-id set (ancestors, descendants, or partners). That way the
- * full chain of inheritance highlights together, not just the single
- * hop next to the hovered card.
+ * Node-select dispatch. In highlight mode a click PINS the lineage
+ * (toggling off if the same node is re-clicked) and does NOT open the
+ * detail drawer. Otherwise it forwards `select` as before.
  */
+function onNodeSelect(id: string): void {
+    if (props.highlightMode) {
+        pinnedId.value = pinnedId.value === id ? null : id
+        return
+    }
+    emit('select', id)
+}
+
+/** Whether an edge lies inside the focus person's lineage. */
 function isEdgeHighlighted(aId: string, bId: string): boolean {
-    const id = hoverId.value
-    if (id === null) return false
-    const aIn = aId === id || relatedIds.value.has(aId)
-    const bIn = bId === id || relatedIds.value.has(bId)
-    return aIn && bIn
+    return isLineageEdge(focusId.value, relatedIds.value, aId, bId)
 }
 
 function nodeCenter(id: string): { x: number; y: number } | null {
@@ -319,7 +290,7 @@ defineExpose({ refit: () => fitToView(true) })
                     :bx="e.parentX"
                     :by="e.parentY"
                     :is-highlighted="isEdgeHighlighted(e.childId, e.parentId)"
-                    :is-dimmed="hoverId !== null && !isEdgeHighlighted(e.childId, e.parentId)"
+                    :is-dimmed="focusId !== null && !isEdgeHighlighted(e.childId, e.parentId)"
                 />
                 <TreeEdge
                     v-for="e in layout.partnerEdges"
@@ -333,7 +304,7 @@ defineExpose({ refit: () => fitToView(true) })
                     :ended="e.ended"
                     :directly-adjacent="e.directlyAdjacent"
                     :is-highlighted="isEdgeHighlighted(e.aId, e.bId)"
-                    :is-dimmed="hoverId !== null && !isEdgeHighlighted(e.aId, e.bId)"
+                    :is-dimmed="focusId !== null && !isEdgeHighlighted(e.aId, e.bId)"
                 />
                 <TreeNode
                     v-for="n in layout.nodes"
@@ -341,10 +312,10 @@ defineExpose({ refit: () => fitToView(true) })
                     :node="n"
                     :selected="n.id === selectedId"
                     :is-current-user="n.linked_user_id !== null && n.linked_user_id === props.currentUserId"
-                    :is-hovered="n.id === hoverId"
+                    :is-hovered="n.id === focusId"
                     :is-related="relatedIds.has(n.id)"
-                    :is-dimmed="hoverId !== null && n.id !== hoverId && !relatedIds.has(n.id)"
-                    @select="(id: string) => emit('select', id)"
+                    :is-dimmed="focusId !== null && n.id !== focusId && !relatedIds.has(n.id)"
+                    @select="(id: string) => onNodeSelect(id)"
                     @hover="(id: string | null) => onNodeHover(id)"
                     @toggle-favourite="(id: string, next: boolean) => emit('toggle-favourite', id, next)"
                 />

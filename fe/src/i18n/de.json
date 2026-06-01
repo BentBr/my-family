@@ -129,6 +129,7 @@
         "titleOf": "Familienstammbaum von {name}",
         "addPerson": "Person hinzufügen",
         "fitToView": "An Ansicht anpassen",
+        "highlightMode": "Hervorheben",
         "loading": "Lädt…",
         "error": "Der Stammbaum konnte nicht geladen werden.",
         "empty": {

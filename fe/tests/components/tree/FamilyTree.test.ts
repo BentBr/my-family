@@ -79,6 +79,24 @@ describe('FamilyTree', () => {
         expect(w.emitted('select')?.[0]).toEqual(['a'])
     })
 
+    it('in highlight mode a node click PINS (no select emit) instead of opening the drawer', async () => {
+        const w = mount(FamilyTree, {
+            props: { tree: tree(), selectedId: null, centerOnId: null, currentUserId: null, highlightMode: true },
+            global: {
+                stubs: {
+                    TreeNode: {
+                        template: '<g class="stub" @click="$emit(\'select\', \'a\')" />',
+                        emits: ['select'],
+                    },
+                    TreeEdge: { template: '<g />' },
+                },
+            },
+        })
+        await w.find('.stub').trigger('click')
+        // Highlight mode swallows the select (it pins the lineage instead).
+        expect(w.emitted('select')).toBeUndefined()
+    })
+
     it('mounts with currentUserId targeting a linked node (initial focus path)', () => {
         // Linked-user-on-canvas branch: `onMounted` resolves a node center
         // and pans to it at the focus scale instead of fitting the whole

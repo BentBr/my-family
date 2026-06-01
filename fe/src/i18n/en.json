@@ -129,6 +129,7 @@
         "titleOf": "Family tree of {name}",
         "addPerson": "Add person",
         "fitToView": "Fit to view",
+        "highlightMode": "Highlight mode",
         "loading": "Loading…",
         "error": "Could not load the family tree.",
         "empty": {

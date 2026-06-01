@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import type { WritableComputedRef } from 'vue'
 
+import { safeLocal } from '@/utils/safeStorage'
+
 const STORAGE_KEY = 'my-fam-tree:locale'
 export type SupportedLocale = 'en' | 'de'
 
@@ -16,7 +18,7 @@ interface I18nLike {
 }
 
 function detectInitialLocale(): SupportedLocale {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = safeLocal.get(STORAGE_KEY)
     if (stored === 'en' || stored === 'de') return stored
     const nav = navigator.language.toLowerCase()
     if (nav.startsWith('de')) return 'de'
@@ -30,7 +32,7 @@ export const useLocaleStore = defineStore('locale', () => {
         i18n.global.locale.value = locale.value
         watch(locale, (v) => {
             i18n.global.locale.value = v
-            localStorage.setItem(STORAGE_KEY, v)
+            safeLocal.set(STORAGE_KEY, v)
         })
     }
 

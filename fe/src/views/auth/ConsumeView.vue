@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useConsumeMagicLink } from '@/api/hooks/auth'
 import { safeReplace } from '@/router/safeReplace'
+import { safeSession } from '@/utils/safeStorage'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,7 +29,7 @@ onMounted(async () => {
         return
     }
     const dedupeKey = `my-fam-tree:consumed:${token}`
-    if (sessionStorage.getItem(dedupeKey) !== null) {
+    if (safeSession.get(dedupeKey) !== null) {
         // Already consumed in a previous mount of this same token; the
         // first mount's success path already redirected. If we got
         // re-mounted before the navigation settled, finish the redirect
@@ -37,7 +38,7 @@ onMounted(async () => {
         await safeReplace(router, '/tree')
         return
     }
-    sessionStorage.setItem(dedupeKey, '1')
+    safeSession.set(dedupeKey, '1')
     try {
         await mutation.mutateAsync(token)
     } catch {
@@ -45,7 +46,7 @@ onMounted(async () => {
         // re-attempt with the same URL. The token is single-use server-
         // side anyway; the rollback only matters for "page mounted but
         // network blew up" which won't actually allow re-consume.
-        sessionStorage.removeItem(dedupeKey)
+        safeSession.remove(dedupeKey)
         status.value = 'error'
         return
     }

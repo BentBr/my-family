@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import type { FamilyId } from '@/types/brand'
+import { safeLocal } from '@/utils/safeStorage'
 
 import { useAuthStore, type FamilyMembership, type Role } from './auth'
 
@@ -9,23 +10,23 @@ const STORAGE_KEY = 'my-fam-tree:activeFamily'
 const FOCUSED_PERSON_KEY = 'my-fam-tree:focusedPerson'
 
 export const useActiveFamilyStore = defineStore('activeFamily', () => {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = safeLocal.get(STORAGE_KEY)
     const activeFamilyId = ref<FamilyId | null>(stored === null ? null : (stored as FamilyId))
 
     watch(activeFamilyId, (val) => {
-        if (val === null) localStorage.removeItem(STORAGE_KEY)
-        else localStorage.setItem(STORAGE_KEY, val)
+        if (val === null) safeLocal.remove(STORAGE_KEY)
+        else safeLocal.set(STORAGE_KEY, val)
     })
 
     // Persisted "the person the user last centered on" — survives reloads so
     // the tree re-renders with the same focal point. Wiped by auth.logout()
     // along with the rest of the `my-fam-tree:` namespace.
-    const storedFocused = localStorage.getItem(FOCUSED_PERSON_KEY)
+    const storedFocused = safeLocal.get(FOCUSED_PERSON_KEY)
     const focusedPersonId = ref<string | null>(storedFocused)
 
     watch(focusedPersonId, (val) => {
-        if (val === null) localStorage.removeItem(FOCUSED_PERSON_KEY)
-        else localStorage.setItem(FOCUSED_PERSON_KEY, val)
+        if (val === null) safeLocal.remove(FOCUSED_PERSON_KEY)
+        else safeLocal.set(FOCUSED_PERSON_KEY, val)
     })
 
     function setFocusedPerson(id: string | null): void {

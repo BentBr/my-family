@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { safeLocal } from '@/utils/safeStorage'
+
 export interface Toast {
     id: string
     kind: 'info' | 'success' | 'error'
@@ -20,7 +22,7 @@ export type ThemeMode = 'system' | 'light' | 'dark'
 const THEME_KEY = 'my-fam-tree:theme'
 
 function loadInitialTheme(): ThemeMode {
-    const v = localStorage.getItem(THEME_KEY)
+    const v = safeLocal.get(THEME_KEY)
     return v === 'light' || v === 'dark' || v === 'system' ? v : 'system'
 }
 
@@ -31,18 +33,18 @@ function loadInitialTheme(): ThemeMode {
 let toastIdSeq = 0
 
 export const useUiStore = defineStore('ui', () => {
-    const sidebarCollapsed = ref(localStorage.getItem('my-fam-tree:sidebar') === '1')
+    const sidebarCollapsed = ref(safeLocal.get('my-fam-tree:sidebar') === '1')
     const toasts = ref<Toast[]>([])
     const theme = ref<ThemeMode>(loadInitialTheme())
 
     function toggleSidebar(): void {
         sidebarCollapsed.value = !sidebarCollapsed.value
-        localStorage.setItem('my-fam-tree:sidebar', sidebarCollapsed.value ? '1' : '0')
+        safeLocal.set('my-fam-tree:sidebar', sidebarCollapsed.value ? '1' : '0')
     }
 
     function setTheme(next: ThemeMode): void {
         theme.value = next
-        localStorage.setItem(THEME_KEY, next)
+        safeLocal.set(THEME_KEY, next)
     }
 
     function pushToast(t: Omit<Toast, 'id'>): void {

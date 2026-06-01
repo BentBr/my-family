@@ -88,9 +88,14 @@ pub fn build_app(
     App::new()
         .app_data(web::Data::new(state))
         .wrap(middleware::PanicCatcher)
-        .wrap(actix_mw::Logger::new(
-            r#"%a "%r" %s %b %T "%{Referer}i" "%{User-Agent}i" rid=%{x-request-id}o"#,
-        ))
+        // NB: the `Referer` header is deliberately NOT logged. Browser-facing
+        // one-time-token pages (`/auth/consume?token=…`, invite / owner-transfer
+        // / email-change links) send their full same-origin URL — including the
+        // token — as the Referer on the follow-up API call. Logging it would
+        // copy single-use tokens into the access log (replayable for the
+        // not-yet-consumed invite / owner-transfer kinds). `%r` is safe: API
+        // endpoints take tokens in the request BODY, never the query string.
+        .wrap(actix_mw::Logger::new(r#"%a "%r" %s %b %T "%{User-Agent}i" rid=%{x-request-id}o"#))
         .wrap(tracing_actix_web::TracingLogger::default())
         .wrap(middleware::RequestId)
         .wrap(cors)

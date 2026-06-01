@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.16](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.15...core-v0.1.16) (2026-06-01)
+
+
+### Features
+
+* **fe:** stronger tree hover + lit lineage through deceased ancestors ([6e1e3bf](https://github.com/BentBr/my-fam-tree/commit/6e1e3bf8266e63a135d2e217fb285f930d281e1b))
+* **fe:** tree highlight mode — click to pin a person's lineage ([c07db16](https://github.com/BentBr/my-fam-tree/commit/c07db16fa84cc99688fd7b932a306c8b4ca34ef5))
+
+
+### Bug Fixes
+
+* **fe:** correct tree layout for in-married siblings, bridging couples + leaf-cluster gap ([f77ec3f](https://github.com/BentBr/my-fam-tree/commit/f77ec3f9b1ad197f3c59765864f1052860e2d8b6))
+
 ## [0.1.15](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.14...core-v0.1.15) (2026-05-31)
 
 

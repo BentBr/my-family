@@ -165,9 +165,15 @@ const partnerClasses = computed(() => ({
  * edges otherwise read as a faint dashed line which is too low-contrast
  * to track as a "this is the relationship" cue. */
 .edge-group.highlighted .edge {
-    stroke-width: 3;
+    stroke-width: 3.5;
     stroke-dasharray: none;
     opacity: 1;
+}
+/* Highlighted PARENT edges switch from the warm-neutral connector to the
+ * accent colour so the traced origin line reads as one continuous lit
+ * path up the tree, not just a slightly thicker grey. */
+.edge-group.highlighted.parent .edge {
+    stroke: var(--acc-strong);
 }
 .edge-group.highlighted.partner .edge {
     /* Keep the rose relationship colour but drop the dash so the line
@@ -187,7 +193,7 @@ const partnerClasses = computed(() => ({
 /* Unrelated edges fade so the highlighted ones pop. Same opacity floor
  * as TreeNode.dimmed so the visual treatment matches. */
 .edge-group.dimmed {
-    opacity: 0.4;
+    opacity: 0.28;
     transition: opacity 150ms ease-in-out;
 }
 </style>

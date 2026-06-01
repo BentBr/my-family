@@ -373,29 +373,31 @@ const STAR_POINTS = (() => {
 }
 .tree-node.hovered > rect {
     stroke: var(--acc-strong);
-    stroke-width: 2;
+    stroke-width: 3;
 }
 .tree-node.hovered {
-    filter: drop-shadow(0 0 6px var(--acc));
+    /* Double drop-shadow: a tight bright core + a wider halo so the
+     * focused card reads as the unmistakable centre of attention. */
+    filter: drop-shadow(0 0 4px var(--acc-strong)) drop-shadow(0 0 10px var(--acc));
 }
 
-/* Lineage relation of the hovered node — same accent stroke as
- * `.hovered` but a softer glow so the hover-focus card still reads as
- * the centre of attention. */
+/* Lineage relation of the hovered node — same accent stroke family as
+ * `.hovered` but one notch softer so the hover-focus card still reads as
+ * the centre of attention while the whole origin line stays clearly lit. */
 .tree-node.related > rect {
-    stroke: var(--acc);
-    stroke-width: 2;
+    stroke: var(--acc-strong);
+    stroke-width: 2.5;
 }
 .tree-node.related {
-    filter: drop-shadow(0 0 4px var(--acc-soft));
+    filter: drop-shadow(0 0 7px var(--acc));
 }
 
 /* Anything that's not the hovered node + not a direct relation fades
- * out so the relevant subset visually pops. Transition keeps the swap
- * from jarring; opacity-only animation avoids the SVG-transform pitfall
+ * harder so the lit lineage pops. Transition keeps the swap from
+ * jarring; opacity-only animation avoids the SVG-transform pitfall
  * documented in the keyframes comment below. */
 .tree-node.dimmed {
-    opacity: 0.4;
+    opacity: 0.28;
     transition: opacity 150ms ease-in-out;
 }
 
@@ -479,6 +481,42 @@ const STAR_POINTS = (() => {
 .tree-node.deceased .name,
 .tree-node.deceased .dates {
     fill: var(--text-3);
+}
+
+/* Deceased + hovered/related: the grey wash above is defined LATER than
+ * the generic `.hovered`/`.related` rect rules, so without these it
+ * would override the accent stroke and a deceased ancestor would stay
+ * grey on hover — impossible to follow up the origin line. These rules
+ * sit after the wash and are more specific, so they win: the card
+ * reclaims the accent stroke AND lifts its text/avatar back to full
+ * contrast while hovered or lit as part of the lineage. The historical
+ * grey returns the moment the pointer leaves. */
+.tree-node.deceased.hovered > rect {
+    fill: var(--acc-soft);
+    stroke: var(--acc-strong);
+    stroke-width: 3;
+}
+.tree-node.deceased.related > rect {
+    fill: var(--acc-soft);
+    stroke: var(--acc-strong);
+    stroke-width: 2.5;
+}
+.tree-node.deceased.hovered .name,
+.tree-node.deceased.related .name {
+    fill: var(--text);
+}
+.tree-node.deceased.hovered .dates,
+.tree-node.deceased.related .dates {
+    fill: var(--text-2);
+}
+.tree-node.deceased.hovered .avatar,
+.tree-node.deceased.related .avatar {
+    fill: var(--acc-soft);
+    stroke: var(--acc);
+}
+.tree-node.deceased.hovered .initials,
+.tree-node.deceased.related .initials {
+    fill: var(--acc-strong);
 }
 
 /* Favourite star — outline-only when unset (subtle dark stroke so it

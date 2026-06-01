@@ -105,7 +105,25 @@ export function centerLeftOver(childrenL: number, childrenR: number, blockWidth:
  *     the saner default than placing her under the most recent one.
  *   - Child with parents [step-aunt] → couple 1 via rightmost
  *     fallback (no overlap with the chain).
+ *
+ * The child's bio parents are unioned across ALL members of the child
+ * block, not just `block.members[0]`. A child whose own block is a
+ * couple `[spouse, blood-child]` has `members[0] === spouse` whenever
+ * the married-in spouse has the smaller id; that spouse has no bio
+ * parents in this family, so keying off `members[0]` alone would drop
+ * the child to the rightmost-couple fallback and strand it in the
+ * wrong sub-cluster (the bug where an in-married sibling rendered
+ * under the wrong partnership). Unioning across members surfaces the
+ * blood child's parents regardless of intra-couple id order.
  */
+function childBioParents(child: Block, bioParents: Map<string, Set<string>>): Set<string> {
+    const out = new Set<string>()
+    for (const m of child.members) {
+        for (const p of bioParents.get(m) ?? []) out.add(p)
+    }
+    return out
+}
+
 function groupChildrenByCouple(block: Block, children: Block[], bioParents: Map<string, Set<string>>): CouplePlan[] {
     if (block.couples.length === 0) return []
     const plans: CouplePlan[] = block.couples.map((c) => ({ couple: c, children: [] }))
@@ -116,9 +134,7 @@ function groupChildrenByCouple(block: Block, children: Block[], bioParents: Map<
     // chain-anchor child doesn't get false-positive-attached to the
     // first couple via the partial-match pass.
     for (const child of children) {
-        const anchor = child.members[0]
-        if (anchor === undefined) continue
-        const parents = bioParents.get(anchor) ?? new Set<string>()
+        const parents = childBioParents(child, bioParents)
         let matched = false
         for (const plan of plans) {
             const lId = block.members[plan.couple.leftIdx]
@@ -138,9 +154,7 @@ function groupChildrenByCouple(block: Block, children: Block[], bioParents: Map<
     // contains EITHER of the child's bio parents.
     const stillUnmatched: Block[] = []
     for (const child of unmatched) {
-        const anchor = child.members[0]
-        if (anchor === undefined) continue
-        const parents = bioParents.get(anchor) ?? new Set<string>()
+        const parents = childBioParents(child, bioParents)
         let matched = false
         for (const plan of plans) {
             const lId = block.members[plan.couple.leftIdx]

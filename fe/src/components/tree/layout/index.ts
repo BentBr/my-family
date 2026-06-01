@@ -234,6 +234,18 @@ export function layoutTree(input: TreeInput): LayoutResult {
         runRowSeparation(rowBlocks, parentOfBlock, childrenOfBlock, placed)
     }
 
+    // Compaction. Sequential root placement parks a disjoint family
+    // cluster (a root subtree with no parent edges INTO the rest of the
+    // tree) at the far-right edge, after the previous cluster's whole
+    // subtree — leaving a wide gap when its only link is a child who
+    // married into another cluster (the bridged couple hangs on the
+    // spouse's side). Pull each root cluster as far LEFT as per-row
+    // collisions allow so it sits close to its connection point. The
+    // shift is rigid (whole cluster moves together) so parent-over-child
+    // centering and within-cluster edges are preserved; only inter-
+    // cluster gaps shrink, never below CLUSTER_GAP.
+    compactRootClusters(rootBlocks, childrenOfBlock, placed)
+
     // Materialize positioned persons. Each block carries its own per-member
     // x offset array — for default-spaced blocks that's
     // `i * (NODE_W + COL_GAP)`; for widened multi-couple blocks the
@@ -571,7 +583,7 @@ function recenterParentsOverChildren(
     for (const pb of candidates) {
         const isRoot = parentOfBlock.get(pb.id) === undefined
         const extent = isRoot
-            ? rootChildExtentByParentEdges(pb, childrenOfPerson, personCenterX)
+            ? rootChildExtentByParentEdges(pb, childrenOfPerson, personCenterX, childrenOfBlock)
             : blockChildExtent(childrenOfBlock.get(pb.id) ?? [], placed)
         if (extent === null) continue
         // Shared with `layoutSubtree`'s initial-placement centering —
@@ -606,35 +618,151 @@ function blockChildExtent(kids: Block[], placed: Map<string, PositionedBlock>): 
 }
 
 /**
- * Parent-edge direct-children L/R extent for a root block. For each
- * member of the root, looks up its direct children via parent_edges
- * (`childrenOfPerson`) and accumulates their card-centre positions
- * into an L/R range (centre ± NODE_W/2). Direct children only — not
- * grandchildren — because we want the root to sit above its IMMEDIATE
- * descendants, mirroring the non-root rule that uses direct block-tree
- * children.
+ * Parent-edge direct-children L/R extent for a root block, used to
+ * recentre the root above its IMMEDIATE descendants (direct children
+ * only — not grandchildren). Centre positions come from the children's
+ * card centres (± NODE_W/2).
  *
- * Returns `null` when the root has no parent-edge children at all
- * (genuinely childless root — caller skips the recenter).
+ * Children are split into:
+ *   - OWN: the child sits in a block that actually hangs under this root
+ *     in the block tree (a member of one of `childrenOfBlock[root]`).
+ *   - BRIDGED: the child married out — their block hangs under the
+ *     spouse's (more-connected) family elsewhere, so the child is
+ *     positioned far away.
+ *
+ * If the root has any OWN children we centre over THOSE only — so a root
+ * with some kids in its own subtree and one kid married out doesn't get
+ * dragged toward the married-out kid (the Quanten case: Quirin+Sari stay
+ * above Kira+Juna, not pulled left toward the bridged-away Marit). If the
+ * root has NO own children (its only child lives inside another root's
+ * chain — the "second mother" / Herta case) we fall back to ALL
+ * parent-edge children so the root still sits above its sole child.
+ *
+ * Returns `null` when the root has no parent-edge children at all.
  */
 function rootChildExtentByParentEdges(
     root: PositionedBlock,
     childrenOfPerson: Map<string, string[]>,
     personCenterX: Map<string, number>,
+    childrenOfBlock: Map<string, Block[]>,
 ): { L: number; R: number } | null {
+    // Members of the blocks that actually hang under this root.
+    const ownMembers = new Set<string>()
+    for (const childBlock of childrenOfBlock.get(root.id) ?? []) {
+        for (const m of childBlock.members) ownMembers.add(m)
+    }
+    const edgeKids: string[] = []
+    for (const memberId of root.members) {
+        for (const kid of childrenOfPerson.get(memberId) ?? []) edgeKids.push(kid)
+    }
+    const ownKids = edgeKids.filter((k) => ownMembers.has(k))
+    const target = ownKids.length > 0 ? ownKids : edgeKids
+
     let firstL = Number.POSITIVE_INFINITY
     let lastR = Number.NEGATIVE_INFINITY
-    for (const memberId of root.members) {
-        for (const kid of childrenOfPerson.get(memberId) ?? []) {
-            const cx = personCenterX.get(kid)
-            if (cx === undefined) continue
-            const l = cx - NODE_W / 2
-            const r = cx + NODE_W / 2
-            if (l < firstL) firstL = l
-            if (r > lastR) lastR = r
-        }
+    for (const kid of target) {
+        const cx = personCenterX.get(kid)
+        if (cx === undefined) continue
+        const l = cx - NODE_W / 2
+        const r = cx + NODE_W / 2
+        if (l < firstL) firstL = l
+        if (r > lastR) lastR = r
     }
     return Number.isFinite(firstL) ? { L: firstL, R: lastR } : null
+}
+
+/**
+ * Pull each disjoint root cluster as far LEFT as per-row collisions
+ * allow, so a cluster whose only link to the rest of the tree is a
+ * married-out child sits close to its connection point instead of being
+ * parked at the far-right edge by sequential placement.
+ *
+ * A "cluster" is a root block plus every block in its block-tree subtree
+ * (`childrenOfBlock`). The shift is RIGID — every block in the cluster
+ * moves by the same delta — so parent-over-child centering and all
+ * within-cluster edges are preserved. Only inter-cluster whitespace
+ * shrinks, never below CLUSTER_GAP.
+ *
+ * Clusters are processed left-to-right (by current min x). The leftmost
+ * never moves; each subsequent one packs left against everything already
+ * fixed to its left. The bound is computed per-row: for each block in
+ * the cluster, the nearest non-cluster block to its left in the same row
+ * caps how far the cluster can travel; the min slack across all the
+ * cluster's rows is the rigid shift. A child who married out lives in
+ * ANOTHER cluster, so it correctly acts as a left-neighbour wall (the
+ * cluster packs up to it, not through it) while its cross-cluster edge
+ * merely shortens.
+ */
+function compactRootClusters(
+    rootBlocks: Block[],
+    childrenOfBlock: Map<string, Block[]>,
+    placed: Map<string, PositionedBlock>,
+): void {
+    // Build each root's subtree block-id set + whether it owns children.
+    const clusters: Array<{ ids: string[]; hasOwnChildren: boolean }> = []
+    for (const root of rootBlocks) {
+        const ids: string[] = []
+        const seen = new Set<string>()
+        const stack = [root.id]
+        while (stack.length > 0) {
+            const id = stack.pop()
+            if (id === undefined || seen.has(id)) continue
+            seen.add(id)
+            ids.push(id)
+            for (const c of childrenOfBlock.get(id) ?? []) stack.push(c.id)
+        }
+        clusters.push({ ids, hasOwnChildren: (childrenOfBlock.get(root.id) ?? []).length > 0 })
+    }
+    const clusterOf = new Map<string, number>()
+    clusters.forEach((c, i) => {
+        for (const id of c.ids) clusterOf.set(id, i)
+    })
+    const clusterMinX = (ids: string[]): number => {
+        let m = Number.POSITIVE_INFINITY
+        for (const id of ids) {
+            const b = placed.get(id)
+            if (b !== undefined && b.x < m) m = b.x
+        }
+        return m
+    }
+    const order = clusters
+        .map((_, i) => i)
+        .sort((a, b) => clusterMinX(clusters[a]?.ids ?? []) - clusterMinX(clusters[b]?.ids ?? []))
+
+    for (let oi = 1; oi < order.length; oi += 1) {
+        const ci = order[oi]
+        if (ci === undefined) continue
+        const cluster = clusters[ci]
+        if (cluster === undefined) continue
+        // Skip a lone root with no block-tree children: its x is anchored
+        // by the recenter pass to a bridged-out child in another cluster
+        // (the "second mother" case) or it's a childless standalone —
+        // packing it left would pull it off its child / serve no purpose.
+        if (!cluster.hasOwnChildren) continue
+        const ids = cluster.ids
+        let minSlack = Number.POSITIVE_INFINITY
+        for (const id of ids) {
+            const b = placed.get(id)
+            if (b === undefined) continue
+            // Rightmost edge of any non-cluster block left of `b` on its row.
+            let maxRight = Number.NEGATIVE_INFINITY
+            for (const other of placed.values()) {
+                if (clusterOf.get(other.id) === ci) continue
+                if (other.y !== b.y) continue
+                if (other.x >= b.x) continue
+                const r = other.x + other.pixelWidth
+                if (r > maxRight) maxRight = r
+            }
+            const slack = maxRight === Number.NEGATIVE_INFINITY ? b.x : b.x - (maxRight + CLUSTER_GAP)
+            if (slack < minSlack) minSlack = slack
+        }
+        if (Number.isFinite(minSlack) && minSlack > 0.5) {
+            for (const id of ids) {
+                const b = placed.get(id)
+                if (b !== undefined) placed.set(id, { ...b, x: b.x - minSlack })
+            }
+        }
+    }
 }
 
 /**

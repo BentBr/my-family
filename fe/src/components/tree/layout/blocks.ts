@@ -259,29 +259,74 @@ function edgeBetween(a: string, b: string, edgesByPerson: Map<string, RowEdge[]>
  *
  * A block hangs from one parent block (the block that contains its
  * canonical parent person); extra parent edges still render as straight
- * lines but don't influence placement. We walk the block's members in
- * order and pick the first member whose canonical parent is present in
- * the family. Using the leftmost member alone misses the common
- * ex-spouse case: `[Brigitte, Klaus, Anna]` where Brigitte is a root
- * (no parent_links) but Klaus has Otto + Hannelore — without this
- * iteration the whole trio becomes an orphan G2 root and drifts away
- * from Klaus's actual lineage.
+ * lines but don't influence placement.
+ *
+ * We collect ONE candidate parent block per member (the block holding
+ * that member's smallest-id parent present in the family), then choose
+ * among them:
+ *
+ *   1. If a candidate parent block is itself NON-root (its own members
+ *      have parents in the family), prefer it. This is the
+ *      bridging-couple rule: when a couple joins two families — e.g. a
+ *      child of the main tree married to someone whose parents are a
+ *      separate leaf-root cluster — the couple should hang under the
+ *      MORE-CONNECTED side (the one that reaches further up the tree)
+ *      so the child sits with their own siblings, and the spouse's
+ *      edge to their leaf-root parents stretches instead. Without this
+ *      the couple hangs under whichever member happens to have the
+ *      smaller id, which is arbitrary and drags the child away from
+ *      their sibling group.
+ *   2. Otherwise fall back to the first candidate in member order. This
+ *      preserves the common ex-spouse case `[Brigitte, Klaus, Anna]`
+ *      where Brigitte is a root (no parent_links) but Klaus has Otto +
+ *      Hannelore — Klaus's (root) parent block is the only candidate,
+ *      so the trio still hangs under Klaus's lineage.
  */
 export function chooseParentBlock(
     block: Block,
     blockOfPerson: Map<string, Block>,
     nodeById: Map<string, BackendNode>,
 ): Block | null {
+    const candidates: Block[] = []
     for (const memberId of block.members) {
         const member = nodeById.get(memberId)
         if (member === undefined) continue
         const sortedParents = [...member.parent_ids].sort()
         for (const pid of sortedParents) {
             const pb = blockOfPerson.get(pid)
-            if (pb !== undefined) return pb
+            if (pb !== undefined) {
+                candidates.push(pb)
+                break // one candidate per member (its canonical parent block)
+            }
         }
     }
-    return null
+    if (candidates.length === 0) return null
+    // Prefer a candidate whose own block reaches further up the tree.
+    for (const pb of candidates) {
+        if (blockHasAncestors(pb, blockOfPerson, nodeById)) return pb
+    }
+    return candidates[0] ?? null
+}
+
+/**
+ * True when any member of `block` has a parent that resolves to another
+ * block in the family — i.e. `block` is not a top-row root. Used by
+ * `chooseParentBlock` to prefer the more-connected side of a
+ * two-family bridging couple.
+ */
+function blockHasAncestors(
+    block: Block,
+    blockOfPerson: Map<string, Block>,
+    nodeById: Map<string, BackendNode>,
+): boolean {
+    for (const memberId of block.members) {
+        const member = nodeById.get(memberId)
+        if (member === undefined) continue
+        for (const pid of member.parent_ids) {
+            if (blockOfPerson.has(pid)) return true
+        }
+    }
+    return false
 }
 
 /**

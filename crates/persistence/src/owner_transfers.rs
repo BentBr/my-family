@@ -66,6 +66,7 @@ impl OwnerTransferRepo for PgOwnerTransferRepo {
     async fn confirm(
         &self,
         token_hash: &[u8],
+        actor_user_id: UserId,
         now: DateTime<Utc>,
     ) -> Result<(OwnerTransfer, TransferSide), OwnerTransferRepoError> {
         // First find which side this token belongs to.
@@ -91,6 +92,19 @@ impl OwnerTransferRepo for PgOwnerTransferRepo {
 
         let side =
             if row.from_token_hash == token_hash { TransferSide::From } else { TransferSide::To };
+
+        // SECURITY: bind the confirmation to the authenticated caller. The
+        // token alone is NOT sufficient — the acting user must be the user
+        // expected for the matched side. A leaked token presented by any
+        // other authed user is rejected here, BEFORE the confirming UPDATE,
+        // so it can never advance / burn the side.
+        let expected_user = match side {
+            TransferSide::From => row.from_user_id,
+            TransferSide::To => row.to_user_id,
+        };
+        if actor_user_id.into_uuid() != expected_user {
+            return Err(OwnerTransferRepoError::Forbidden);
+        }
 
         // Mark the matching side as confirmed. Each `query!` macro
         // generates its own anonymous `Record` struct, so we convert to
@@ -181,13 +195,15 @@ impl OwnerTransferRepo for PgOwnerTransferRepo {
         let mut tx =
             self.pool.begin().await.map_err(|e| OwnerTransferRepoError::Db(e.to_string()))?;
 
-        // Demote the outgoing owner FIRST. If a future unique partial
-        // index on `(family_id) WHERE role = 'owner'` is added, this
-        // ordering keeps the constraint satisfied at every step (we
-        // never have two owners simultaneously).
-        sqlx::query!(
+        // Demote the outgoing owner FIRST. The `AND role = 'owner'` guard
+        // means we only demote a still-current owner — if they were already
+        // demoted/removed mid-flight the update affects 0 rows and we bail
+        // out below WITHOUT committing, so the family never loses its owner.
+        // This ordering also keeps a future `(family_id) WHERE role='owner'`
+        // partial unique index satisfied at every step.
+        let demote = sqlx::query!(
             r#"UPDATE family_memberships SET role = ($3::text)::family_role
-                WHERE family_id = $1 AND user_id = $2"#,
+                WHERE family_id = $1 AND user_id = $2 AND role = 'owner'"#,
             family_id.into_uuid(),
             from_user_id.into_uuid(),
             "admin",
@@ -195,9 +211,17 @@ impl OwnerTransferRepo for PgOwnerTransferRepo {
         .execute(&mut *tx)
         .await
         .map_err(|e| OwnerTransferRepoError::Db(e.to_string()))?;
+        if demote.rows_affected() != 1 {
+            // The outgoing owner is no longer a current owner — roll back
+            // (tx drops un-committed) so nothing changes.
+            return Err(OwnerTransferRepoError::MembershipChanged);
+        }
 
-        // Promote the incoming user to owner.
-        sqlx::query!(
+        // Promote the incoming user to owner. The membership must still
+        // exist (`family_id`+`user_id`); if the incoming user was removed
+        // mid-flight the update affects 0 rows and we bail WITHOUT
+        // committing — the old owner's demote above is discarded too.
+        let promote = sqlx::query!(
             r#"UPDATE family_memberships SET role = ($3::text)::family_role
                 WHERE family_id = $1 AND user_id = $2"#,
             family_id.into_uuid(),
@@ -207,6 +231,9 @@ impl OwnerTransferRepo for PgOwnerTransferRepo {
         .execute(&mut *tx)
         .await
         .map_err(|e| OwnerTransferRepoError::Db(e.to_string()))?;
+        if promote.rows_affected() != 1 {
+            return Err(OwnerTransferRepoError::MembershipChanged);
+        }
 
         // Stamp the transfer row. The WHERE guards make this idempotent
         // — if the row is already completed or cancelled, the rest of

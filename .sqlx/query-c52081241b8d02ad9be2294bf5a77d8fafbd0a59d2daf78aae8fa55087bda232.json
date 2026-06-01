@@ -1,0 +1,102 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, family_id, email::text AS \"email!\", invited_role::text AS \"role!\",\n                      invited_by, person_id, expires_at, accepted_at\n                 FROM family_invites\n                WHERE token_hash = $1 AND accepted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "family_invites",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "family_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "family_invites",
+            "name": "family_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "email!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "invited_by",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "family_invites",
+            "name": "invited_by"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "person_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "family_invites",
+            "name": "person_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "family_invites",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "accepted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "family_invites",
+            "name": "accepted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bytea"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "c52081241b8d02ad9be2294bf5a77d8fafbd0a59d2daf78aae8fa55087bda232"
+}

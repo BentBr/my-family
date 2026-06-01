@@ -54,6 +54,19 @@ pub trait MagicLinkRepo: Send + Sync {
         expires_at: DateTime<Utc>,
     ) -> Result<Uuid, MagicLinkRepoError>;
 
+    /// Non-mutating lookup of a consumable (not-yet-consumed) token.
+    ///
+    /// Unlike [`consume`](Self::consume) this does NOT mark `consumed_at` — it
+    /// lets a caller validate the token's `purpose` / `user_id` against the
+    /// authenticated session BEFORE the single-use token is burned. Returns
+    /// [`MagicLinkRepoError::NotFoundOrConsumed`] when no unconsumed row
+    /// matches and [`MagicLinkRepoError::Expired`] when the matched row is
+    /// past `expires_at`.
+    async fn find_consumable(
+        &self,
+        token_hash: &[u8],
+    ) -> Result<MagicLinkRecord, MagicLinkRepoError>;
+
     /// Atomically marks consumed and returns the record. Caller verifies `expires_at`.
     async fn consume(&self, token_hash: &[u8]) -> Result<MagicLinkRecord, MagicLinkRepoError>;
 }

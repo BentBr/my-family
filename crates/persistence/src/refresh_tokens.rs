@@ -98,6 +98,23 @@ impl RefreshTokenRepo for PgRefreshTokenRepo {
         Ok(row.map(Into::into))
     }
 
+    async fn find_any_by_hash(
+        &self,
+        token_hash: &[u8],
+    ) -> Result<Option<RefreshTokenRecord>, RefreshRepoError> {
+        let row = sqlx::query_as!(
+            RefreshTokenRow,
+            r#"SELECT id, user_id, created_at, last_used_at, expires_at, absolute_expires_at,
+                      revoked_at, device_label
+                 FROM refresh_tokens WHERE token_hash = $1"#,
+            token_hash
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| RefreshRepoError::Db(e.to_string()))?;
+        Ok(row.map(Into::into))
+    }
+
     async fn rotate(
         &self,
         old_hash: &[u8],

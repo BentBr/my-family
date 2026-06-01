@@ -378,19 +378,33 @@ pub async fn email_change_confirm(
         return Err(ApiError::MagicLinkInvalid);
     }
     let hash = hash_token(token);
-    let record = state.magic_links.consume(&hash).await.map_err(|e| match e {
+
+    // SECURITY: validate purpose + owner BEFORE consuming. We FIRST do a
+    // non-mutating `find_consumable` lookup and cross-check the token belongs
+    // to the authenticated caller and is an email-change token. Only THEN do
+    // we atomically `consume` it. Consuming first would let a wrong authed
+    // user (or a leaked token) burn the victim's still-valid token — a DoS:
+    // the rightful owner's link would already read as consumed.
+    let record = state.magic_links.find_consumable(&hash).await.map_err(|e| match e {
         MagicLinkRepoError::Expired | MagicLinkRepoError::NotFoundOrConsumed => {
             ApiError::MagicLinkInvalid
         }
         MagicLinkRepoError::Db(s) => ApiError::Internal(anyhow::anyhow!(s)),
     })?;
-
-    // Cross-check the token actually belongs to the authenticated caller.
-    // A leaked token from another user must not let the attacker hijack the
-    // victim's email via their own session.
     if record.purpose != MagicLinkPurpose::EmailChange || record.user_id != Some(claims.user_id) {
+        // Wrong purpose or not the caller's token: reject WITHOUT consuming,
+        // so the rightful owner's token stays usable.
         return Err(ApiError::MagicLinkInvalid);
     }
+
+    // Owner + purpose validated — now atomically mark it consumed. The
+    // `WHERE consumed_at IS NULL` guard still enforces single-use.
+    state.magic_links.consume(&hash).await.map_err(|e| match e {
+        MagicLinkRepoError::Expired | MagicLinkRepoError::NotFoundOrConsumed => {
+            ApiError::MagicLinkInvalid
+        }
+        MagicLinkRepoError::Db(s) => ApiError::Internal(anyhow::anyhow!(s)),
+    })?;
 
     state.users.update_email(claims.user_id, &record.email).await.map_err(|e| match e {
         UserRepoError::DuplicateEmail => ApiError::EmailTaken,

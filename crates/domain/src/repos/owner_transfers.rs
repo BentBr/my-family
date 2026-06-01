@@ -44,6 +44,10 @@ pub enum OwnerTransferRepoError {
     NotFound,
     #[error("transfer has expired")]
     Expired,
+    #[error("token does not belong to the authenticated user")]
+    Forbidden,
+    #[error("membership changed; transfer can no longer complete")]
+    MembershipChanged,
 }
 
 /// Which side of a transfer a confirmation token belongs to.
@@ -81,12 +85,19 @@ pub trait OwnerTransferRepo: Send + Sync {
 
     /// Mark one side of a transfer as confirmed.
     ///
-    /// Looks up the active transfer by token hash, sets the relevant
-    /// `*_confirmed_at`, and returns the full row + which side was
-    /// confirmed. Returns `NotFound` if no active transfer matches.
+    /// Looks up the active transfer by token hash, determines which side the
+    /// token belongs to, and REQUIRES that `actor_user_id` matches the user
+    /// expected for that side (the `from_user_id` for the From side, the
+    /// `to_user_id` for the To side). On mismatch it returns
+    /// [`OwnerTransferRepoError::Forbidden`] BEFORE running the confirming
+    /// update, so a leaked token presented by the wrong authenticated user
+    /// can never burn / advance the side. On match it sets the relevant
+    /// `*_confirmed_at` and returns the full row + which side was confirmed.
+    /// Returns `NotFound` if no active transfer matches.
     async fn confirm(
         &self,
         token_hash: &[u8],
+        actor_user_id: UserId,
         now: DateTime<Utc>,
     ) -> Result<(OwnerTransfer, TransferSide), OwnerTransferRepoError>;
 
@@ -108,10 +119,19 @@ pub trait OwnerTransferRepo: Send + Sync {
     /// non-transactional calls and a failure between #1 and #2 left the
     /// family with no owner row.
     ///
-    /// Idempotent against a transfer that was already `complete` (the
-    /// stamp + role updates are no-ops in that case).
+    /// Both role updates are guarded so the family can never be left
+    /// without an owner: the demote only matches a still-current owner
+    /// (`role = 'owner'`) and the promote requires the incoming
+    /// membership to still exist. If either update does not affect
+    /// exactly one row (e.g. the incoming user was removed/demoted
+    /// between `begin` and here) the transaction rolls back and
+    /// [`OwnerTransferRepoError::MembershipChanged`] is returned —
+    /// nothing changes, the old owner stays owner.
     ///
     /// # Errors
+    /// [`OwnerTransferRepoError::MembershipChanged`] when the demote or
+    /// promote does not affect exactly one row (the transaction rolls
+    /// back, so partial state never lands);
     /// [`OwnerTransferRepoError::Db`] on transport / driver failure;
     /// the transaction rolls back so partial state never lands.
     async fn complete_with_role_swap(

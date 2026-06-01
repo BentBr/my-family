@@ -306,10 +306,17 @@ pub async fn confirm(
     let token_hash = hash_token(body.token.trim());
     let now = Utc::now();
 
-    let (transfer, side) =
-        state.owner_transfers.confirm(&token_hash, now).await.map_err(|e| match e {
+    let (transfer, side) = state
+        .owner_transfers
+        .confirm(&token_hash, claims.user_id, now)
+        .await
+        .map_err(|e| match e {
             OwnerTransferRepoError::NotFound => ApiError::PersonNotFound { id: None },
             OwnerTransferRepoError::Expired => ApiError::InviteExpired,
+            // The token does not belong to the authenticated caller. Closest
+            // existing 403 variant (FamilyInsufficientRole → 403); we do not
+            // mint a dedicated `Forbidden` ApiError variant.
+            OwnerTransferRepoError::Forbidden => ApiError::InsufficientRole { needed: Role::Owner },
             other => internal(other),
         })?;
 
@@ -342,7 +349,14 @@ pub async fn confirm(
                 now,
             )
             .await
-            .map_err(internal)?;
+            .map_err(|e| match e {
+                // The membership changed under us (incoming user removed /
+                // outgoing no longer owner). Nothing was written; surface a
+                // 409 Conflict via the existing stale-state variant rather
+                // than a 500.
+                OwnerTransferRepoError::MembershipChanged => ApiError::ConflictStale,
+                other => internal(other),
+            })?;
         audit::record(
             &state.audit,
             family_id,

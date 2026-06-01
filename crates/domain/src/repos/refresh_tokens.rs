@@ -47,6 +47,16 @@ pub trait RefreshTokenRepo: Send + Sync {
         token_hash: &[u8],
     ) -> Result<Option<RefreshTokenRecord>, RefreshRepoError>;
 
+    /// Returns the record by hash REGARDLESS of revocation state (the
+    /// returned [`RefreshTokenRecord`] carries `revoked_at`). Used for refresh
+    /// token reuse detection: when an already-rotated (revoked) token is
+    /// re-presented, the caller can detect theft and revoke every session for
+    /// the user.
+    async fn find_any_by_hash(
+        &self,
+        token_hash: &[u8],
+    ) -> Result<Option<RefreshTokenRecord>, RefreshRepoError>;
+
     /// Atomic rotation: revokes the old row and inserts a new one for the same user.
     async fn rotate(
         &self,

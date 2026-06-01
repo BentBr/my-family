@@ -132,7 +132,15 @@ pub async fn accept(
         .map(|jwt| (jwt.email.clone(), my_fam_tree_domain::UserId::from_uuid(jwt.sub)));
 
     let hash = hash_token(body.token.trim());
-    let invite = state.invites.accept(&hash, Utc::now()).await.map_err(|e| match e {
+    let now = Utc::now();
+
+    // SECURITY: validate the acting user BEFORE the single-use token is
+    // burned. We FIRST do a non-mutating `find_pending` lookup, resolve /
+    // reject the actor against it, and only THEN call `accept` (which marks
+    // `accepted_at`). Otherwise a wrong signed-in user hitting this route
+    // would atomically consume the token before the email-mismatch check —
+    // a 422 that nonetheless burns the invite.
+    let pending = state.invites.find_pending(&hash, now).await.map_err(|e| match e {
         InviteRepoError::Expired => ApiError::InviteExpired,
         InviteRepoError::NotFoundOrAccepted => ApiError::MagicLinkInvalid,
         InviteRepoError::Db(s) => ApiError::Internal(anyhow::anyhow!(s)),
@@ -142,16 +150,27 @@ pub async fn accept(
     // email matches the invite) or — when anonymous — the user keyed on
     // `invite.email`, creating the row if it doesn't exist yet.
     let user_id: UserId = if let Some((email, uid)) = existing_claims_email_and_id.as_ref() {
-        if !invite.email.eq_ignore_ascii_case(email) {
+        if !pending.email.eq_ignore_ascii_case(email) {
+            // The wrong session: reject WITHOUT consuming so the rightful
+            // recipient can still accept the still-pending invite.
             return Err(invite_email_mismatch("/token"));
         }
         *uid
     } else {
-        match state.users.find_by_email(&invite.email).await.map_err(internal)? {
+        match state.users.find_by_email(&pending.email).await.map_err(internal)? {
             Some(u) => u.id,
-            None => state.users.create(&invite.email, Locale::En).await.map_err(internal)?.id,
+            None => state.users.create(&pending.email, Locale::En).await.map_err(internal)?.id,
         }
     };
+
+    // Actor validated — now atomically mark the invite accepted. The
+    // `WHERE accepted_at IS NULL` guard still enforces single-use: a
+    // concurrent double-accept loses the race and gets `NotFoundOrAccepted`.
+    let invite = state.invites.accept(&hash, now).await.map_err(|e| match e {
+        InviteRepoError::Expired => ApiError::InviteExpired,
+        InviteRepoError::NotFoundOrAccepted => ApiError::MagicLinkInvalid,
+        InviteRepoError::Db(s) => ApiError::Internal(anyhow::anyhow!(s)),
+    })?;
 
     // Audit the verification BEFORE writing membership so the log keeps
     // an event even if the membership insert below races. metadata.person_id

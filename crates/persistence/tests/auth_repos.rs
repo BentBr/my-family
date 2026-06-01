@@ -13,12 +13,12 @@ use std::time::Duration as StdDuration;
 use chrono::{Duration, Utc};
 use my_fam_tree_domain::{
     FamilyInviteRepo, FamilyMembershipRepo, FamilyRepo, Locale, MagicLinkPurpose, MagicLinkRepo,
-    ParentKind, ParentLinkRepo, ParentLinkRepoError, PersonId, PersonRepo, RefreshTokenRepo, Role,
-    UserRepo,
+    OwnerTransferRepo, OwnerTransferRepoError, ParentKind, ParentLinkRepo, ParentLinkRepoError,
+    PersonId, PersonRepo, RefreshTokenRepo, Role, UserRepo,
 };
 use my_fam_tree_persistence::{
     Database, PgFamilyInviteRepo, PgFamilyMembershipRepo, PgFamilyRepo, PgMagicLinkRepo,
-    PgParentLinkRepo, PgPersonRepo, PgRefreshTokenRepo, PgUserRepo,
+    PgOwnerTransferRepo, PgParentLinkRepo, PgPersonRepo, PgRefreshTokenRepo, PgUserRepo,
 };
 use sqlx::PgPool;
 use testcontainers::ContainerAsync;
@@ -203,4 +203,57 @@ async fn invite_accept_is_idempotent() {
     assert_eq!(inv.email, "new@x.y");
     let second = invs.accept(&hash, Utc::now()).await;
     assert!(matches!(second, Err(my_fam_tree_domain::InviteRepoError::NotFoundOrAccepted)));
+}
+
+/// FIX #4: `complete_with_role_swap` must never leave the family without an
+/// owner. If the incoming (`to`) user's membership is removed AFTER `begin`,
+/// the promote affects 0 rows; the whole transaction rolls back with
+/// `MembershipChanged` and the `from` user stays `owner`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn complete_with_role_swap_rolls_back_when_incoming_membership_removed() {
+    let db = setup().await;
+    let users = PgUserRepo::new(db.pool.clone());
+    let families = PgFamilyRepo::new(db.pool.clone());
+    let memberships = PgFamilyMembershipRepo::new(db.pool.clone());
+    let transfers = PgOwnerTransferRepo::new(db.pool.clone());
+
+    let from_user = users.create("from@x.y", Locale::En).await.expect("from user");
+    let to_user = users.create("to@x.y", Locale::En).await.expect("to user");
+    let family = families.create("Fam", from_user.id).await.expect("family");
+
+    memberships.insert(family.id, from_user.id, Role::Owner).await.expect("owner membership");
+    memberships.insert(family.id, to_user.id, Role::Admin).await.expect("admin membership");
+
+    let id = transfers
+        .begin(
+            family.id,
+            from_user.id,
+            to_user.id,
+            &[1_u8; 32],
+            &[2_u8; 32],
+            Utc::now() + Duration::hours(1),
+        )
+        .await
+        .expect("begin transfer");
+
+    // The incoming user is removed mid-flight (e.g. by an admin), so the
+    // promote will hit 0 rows.
+    memberships.remove(family.id, to_user.id).await.expect("remove incoming");
+
+    let res = transfers
+        .complete_with_role_swap(id, family.id, from_user.id, to_user.id, Utc::now())
+        .await;
+    assert!(
+        matches!(res, Err(OwnerTransferRepoError::MembershipChanged)),
+        "expected MembershipChanged, got {res:?}",
+    );
+
+    // The from user MUST still be owner — nothing committed.
+    let from_membership =
+        memberships.find(family.id, from_user.id).await.expect("find").expect("still member");
+    assert_eq!(from_membership.role, Role::Owner, "old owner must remain owner after rollback");
+
+    // The transfer is NOT marked complete.
+    let active = transfers.find_active(family.id).await.expect("find active");
+    assert!(active.is_some(), "transfer must remain active (not completed) after rollback");
 }

@@ -96,6 +96,30 @@ impl FamilyInviteRepo for PgFamilyInviteRepo {
         Ok(row.id)
     }
 
+    async fn find_pending(
+        &self,
+        token_hash: &[u8],
+        now: DateTime<Utc>,
+    ) -> Result<Invite, InviteRepoError> {
+        let row = sqlx::query_as!(
+            InviteRow,
+            r#"SELECT id, family_id, email::text AS "email!", invited_role::text AS "role!",
+                      invited_by, person_id, expires_at, accepted_at
+                 FROM family_invites
+                WHERE token_hash = $1 AND accepted_at IS NULL"#,
+            token_hash
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| InviteRepoError::Db(e.to_string()))?
+        .ok_or(InviteRepoError::NotFoundOrAccepted)?;
+
+        if row.expires_at < now {
+            return Err(InviteRepoError::Expired);
+        }
+        Ok(row.into())
+    }
+
     async fn accept(
         &self,
         token_hash: &[u8],

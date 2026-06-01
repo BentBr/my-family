@@ -40,6 +40,20 @@ pub trait FamilyInviteRepo: Send + Sync {
         expires_at: DateTime<Utc>,
     ) -> Result<Uuid, InviteRepoError>;
 
+    /// Non-mutating lookup of a pending invite by token hash.
+    ///
+    /// Unlike [`accept`](Self::accept) this does NOT mark `accepted_at` — it
+    /// lets the API validate the acting user (session email match / user
+    /// resolution) BEFORE the single-use token is burned. Returns
+    /// [`InviteRepoError::NotFoundOrAccepted`] when no unaccepted row matches
+    /// and [`InviteRepoError::Expired`] when the matched row is past
+    /// `expires_at`.
+    async fn find_pending(
+        &self,
+        token_hash: &[u8],
+        now: DateTime<Utc>,
+    ) -> Result<Invite, InviteRepoError>;
+
     /// Atomic accept: marks `accepted_at` and returns the invite if not already accepted and
     /// not expired.
     async fn accept(

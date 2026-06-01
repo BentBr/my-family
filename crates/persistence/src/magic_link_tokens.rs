@@ -82,6 +82,29 @@ impl MagicLinkRepo for PgMagicLinkRepo {
         Ok(row.id)
     }
 
+    async fn find_consumable(
+        &self,
+        token_hash: &[u8],
+    ) -> Result<MagicLinkRecord, MagicLinkRepoError> {
+        let row = sqlx::query_as!(
+            MagicLinkRow,
+            r#"SELECT id, user_id, email::text AS "email!", purpose::text AS "purpose!",
+                      expires_at, consumed_at
+                 FROM magic_link_tokens
+                WHERE token_hash = $1 AND consumed_at IS NULL"#,
+            token_hash
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| MagicLinkRepoError::Db(e.to_string()))?
+        .ok_or(MagicLinkRepoError::NotFoundOrConsumed)?;
+
+        if row.expires_at < Utc::now() {
+            return Err(MagicLinkRepoError::Expired);
+        }
+        Ok(row.into())
+    }
+
     async fn consume(&self, token_hash: &[u8]) -> Result<MagicLinkRecord, MagicLinkRepoError> {
         let row = sqlx::query_as!(
             MagicLinkRow,

@@ -342,12 +342,32 @@ pub async fn refresh(
     let cookie = req.cookie(REFRESH_COOKIE).ok_or(ApiError::RefreshInvalid)?;
     let old_hash = hash_token(cookie.value());
 
-    let record = state
+    let Some(record) = state
         .refresh_tokens
         .find_active_by_hash(&old_hash)
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?
-        .ok_or(ApiError::RefreshInvalid)?;
+    else {
+        // No active row for this hash. Before rejecting, check whether the
+        // hash matches an ALREADY-REVOKED row — that means a previously
+        // rotated (and thus single-use-spent) token was re-presented:
+        // classic refresh-token reuse / theft. Defensively revoke EVERY
+        // session for the owning user so a stolen token can't be chained.
+        if let Some(rec) = state
+            .refresh_tokens
+            .find_any_by_hash(&old_hash)
+            .await
+            .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?
+            && rec.revoked_at.is_some()
+        {
+            let _ = state.refresh_tokens.revoke_all_for_user(rec.user_id).await;
+            tracing::warn!(
+                user_id = %rec.user_id.into_uuid(),
+                "refresh token reuse detected; revoked all sessions for user"
+            );
+        }
+        return Err(ApiError::RefreshInvalid);
+    };
 
     let now = Utc::now();
     if record.expires_at < now || record.absolute_expires_at < now {

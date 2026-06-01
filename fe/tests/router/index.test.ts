@@ -140,6 +140,15 @@ describe('router guards', () => {
         expect(router.currentRoute.value.path).toBe('/families/pick')
     })
 
+    it('anonymous user is bounced from /health (authed status page) consistently with its meta', async () => {
+        // Regression for the meta/behaviour mismatch: /health is an
+        // authenticated page (main chrome, post-login landing). Its meta
+        // now says `requiresAuth: true` and the meta-driven guard bounces
+        // anonymous visitors — the two agree.
+        await router.push('/health')
+        expect(router.currentRoute.value.path).toBe('/auth/sign-in')
+    })
+
     it('/ stays on the public home page for anonymous visitors', async () => {
         // The root path is the public marketing page and is reachable
         // without a session. Guards must not redirect anonymous callers

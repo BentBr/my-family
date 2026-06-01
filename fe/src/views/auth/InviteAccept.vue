@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useAcceptInvite } from '@/api/hooks/families'
+import { safeReplace } from '@/router/safeReplace'
 import { useActiveFamilyStore } from '@/stores/activeFamily'
 import { useAuthStore } from '@/stores/auth'
 import type { FamilyId } from '@/types/brand'
@@ -66,18 +67,8 @@ onMounted(async () => {
     // so the single-use token URL is not retained in history.
     status.value = 'ok'
     await nextTick()
-    await safeReplace('/tree')
+    await safeReplace(router, '/tree')
 })
-
-async function safeReplace(to: string): Promise<void> {
-    try {
-        await router.replace(to)
-    } catch {
-        // Aborted / duplicate / guard-redirected navigations are not
-        // failures of the accept; the family is joined and the next
-        // user interaction will pick up the right route.
-    }
-}
 
 async function signOutAndRetry(): Promise<void> {
     const token = String(route.query['token'] ?? '')

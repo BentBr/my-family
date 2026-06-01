@@ -14,7 +14,23 @@ declare module 'vue-router' {
          * rather than a half-rendered sidebar.
          */
         sidebar?: 'main' | 'admin' | 'none'
+        /**
+         * Session requirement. The auth guard lets anonymous visitors
+         * stay only on routes that are `public` OR explicitly
+         * `requiresAuth: false` (the auth-flow pages that handle the
+         * anonymous case themselves). Every other route — including any
+         * route that omits this flag — needs a session.
+         */
         requiresAuth?: boolean
+        /**
+         * Active-family requirement. Only routes flagged
+         * `requiresFamily` bounce a family-less (but authenticated) user
+         * to `/families/create` or `/families/pick`. Family-optional
+         * authed pages (account, health, the family picker itself) omit
+         * it. `requiresAdmin` implies `requiresFamily` (a role lives in a
+         * family), so admin routes set both.
+         */
+        requiresFamily?: boolean
         requiresAdmin?: boolean
         /**
          * Marks a route as part of the unauthenticated public site.
@@ -79,7 +95,9 @@ const routes: RouteRecordRaw[] = [
         path: '/health',
         name: 'health',
         component: () => import('@/views/HealthView.vue'),
-        meta: { layout: 'main', sidebar: 'main', requiresAuth: false },
+        // Authenticated status page (renders in the main chrome and is the
+        // post-login landing). Family-optional: no `requiresFamily`.
+        meta: { layout: 'main', sidebar: 'main', requiresAuth: true },
     },
     {
         path: '/account',
@@ -103,13 +121,13 @@ const routes: RouteRecordRaw[] = [
         path: '/tree',
         name: 'tree',
         component: () => import('@/views/tree/TreeView.vue'),
-        meta: { layout: 'main', sidebar: 'main', requiresAuth: true },
+        meta: { layout: 'main', sidebar: 'main', requiresAuth: true, requiresFamily: true },
     },
     {
         path: '/upcoming',
         name: 'upcoming',
         component: () => import('@/views/upcoming/UpcomingView.vue'),
-        meta: { layout: 'main', sidebar: 'main', requiresAuth: true },
+        meta: { layout: 'main', sidebar: 'main', requiresAuth: true, requiresFamily: true },
     },
     {
         path: '/admin',
@@ -119,25 +137,25 @@ const routes: RouteRecordRaw[] = [
         path: '/admin/family',
         name: 'admin-family',
         component: () => import('@/views/admin/AdminFamily.vue'),
-        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresAdmin: true },
+        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresFamily: true, requiresAdmin: true },
     },
     {
         path: '/admin/audit',
         name: 'admin-audit',
         component: () => import('@/views/admin/AdminAudit.vue'),
-        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresAdmin: true },
+        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresFamily: true, requiresAdmin: true },
     },
     {
         path: '/admin/members',
         name: 'admin-members',
         component: () => import('@/views/admin/AdminMembers.vue'),
-        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresAdmin: true },
+        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresFamily: true, requiresAdmin: true },
     },
     {
         path: '/admin/invites',
         name: 'admin-invites',
         component: () => import('@/views/admin/AdminInvites.vue'),
-        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresAdmin: true },
+        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresFamily: true, requiresAdmin: true },
     },
     // /reminders/* etc. are added in Phase 4b.
 ]
@@ -152,20 +170,26 @@ router.beforeEach(async (to) => {
     if (auth.status === 'anonymous') {
         try {
             await auth.hydrate()
-        } catch {
-            // Network failure during hydrate — stay anonymous; the guard below
-            // will bounce the request to sign-in.
+        } catch (e) {
+            // `hydrate()` already maps a 401 to "anonymous" and returns; if
+            // we land here it's an UNEXPECTED failure (network down, 5xx).
+            // Don't swallow it silently — log for diagnostics. We still
+            // fall through to the anonymous bounce below: rethrowing from a
+            // guard would abort navigation and strand the user with no
+            // route, which is worse than a sign-in bounce.
+            console.error('[router] unexpected auth hydrate failure', e)
         }
     }
-    // `/invite/*` is also exempt: the InviteAccept view handles anonymous
-    // arrivals itself by stashing the token to sessionStorage and bouncing the
-    // user to /auth/sign-in. If the gate bounced first, the token would be
-    // dropped from the URL before InviteAccept ever saw it.
-    // Routes flagged `meta.public` (the marketing + legal pages) are also
-    // exempt: they're informational and signed-in users may still browse
-    // them. Anonymous visitors stay on them too.
-    const isExempt = to.meta.public === true || to.path.startsWith('/auth/') || to.path.startsWith('/invite/')
-    if (auth.status === 'anonymous' && !isExempt) {
+    // Anonymous visitors may remain only on:
+    //   - `meta.public` routes — marketing + legal pages, also browsable
+    //     while signed in;
+    //   - `meta.requiresAuth === false` routes — the auth-flow pages
+    //     (sign-in / consume / invite-accept) that handle the anonymous
+    //     case themselves (e.g. InviteAccept stashes its token and bounces
+    //     to sign-in; bouncing here first would drop the token from the URL).
+    // Any other route — including one that omits the flag — needs a session.
+    const anonymousAllowed = to.meta.public === true || to.meta.requiresAuth === false
+    if (auth.status === 'anonymous' && !anonymousAllowed) {
         return '/auth/sign-in'
     }
     if (auth.status === 'authenticated' && to.path === '/auth/sign-in') {
@@ -179,48 +203,34 @@ router.beforeEach((to) => {
     const auth = useAuthStore()
     const family = useActiveFamilyStore()
     if (auth.status !== 'authenticated') return true
-    // Reconcile stale active-family BEFORE the exempt check: localStorage
-    // may carry an `activeFamilyId` from a previous session whose
-    // membership no longer exists in `auth.families` (the user got
+    // Reconcile stale active-family BEFORE the requires-family check:
+    // localStorage may carry an `activeFamilyId` from a previous session
+    // whose membership no longer exists in `auth.families` (the user got
     // removed, the family was deleted, or the run signed in as a
     // different identity on the same browser). Letting the tree query
     // fire with that stale id triggers a 422 X-Family-Id validation on
     // the API, surfacing as the toast "Validation failed" — and the
     // switcher shows the raw UUID because no item title matches. Wipe
-    // it here so even exempt routes (e.g. `/account`, `/health`) don't
-    // leak the stale id into their FamilySwitcher render.
+    // it here so even family-optional routes (e.g. `/account`, `/health`)
+    // don't leak the stale id into their FamilySwitcher render.
     if (family.activeFamilyId !== null && !auth.families.some((f) => f.id === family.activeFamilyId)) {
         family.clearOnLogout()
     }
-    // Routes that don't need an active family:
-    //   - `meta.public` marketing / legal pages
-    //   - `/auth/*` — sign-in / consume / refresh flows
-    //   - `/families/*` — picker / create themselves resolve the family
-    //   - `/invite/*` — token redemption may happen before the user has any
-    //     family at all
-    //   - `/account` — user-scoped profile / locale / avatar; no family
-    //     context needed and a fresh user (zero families) must be able to
-    //     reach it directly without being bounced through /families/create
-    //   - `/health` — status page, no family context
-    //
-    // Auto-select-when-sole-family runs BEFORE the exempt check too: even
-    // routes that don't *require* an active family still want one set so
-    // the AppBar's FamilySwitcher reflects the user's family on /account
-    // / /health renders.
+    // Auto-select-when-sole-family runs for every authed route (not just
+    // the family-required ones) so the AppBar's FamilySwitcher reflects
+    // the user's family on /account / /health renders too.
     if (family.activeFamilyId === null && auth.families.length === 1) {
         const sole = auth.families[0]
         if (sole !== undefined) {
             family.setActive(sole.id)
         }
     }
-    const isExempt =
-        to.meta.public === true ||
-        to.path.startsWith('/auth/') ||
-        to.path.startsWith('/families/') ||
-        to.path.startsWith('/invite/') ||
-        to.path.startsWith('/account') ||
-        to.path === '/health'
-    if (isExempt) return true
+    // Only routes that declare `meta.requiresFamily` enforce an active
+    // family. Family-optional authed pages (account*, health, the family
+    // picker/create themselves, auth + invite flows, public pages) omit
+    // the flag and pass through — driven by the route declaration rather
+    // than a duplicated path-prefix allowlist.
+    if (to.meta.requiresFamily !== true) return true
     if (family.activeFamilyId !== null) return true
     // Non-exempt routes need an active family. A zero-family user falls
     // through to /families/create; the multi-family case sends them to

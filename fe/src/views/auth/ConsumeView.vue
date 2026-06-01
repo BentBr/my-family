@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useConsumeMagicLink } from '@/api/hooks/auth'
+import { safeReplace } from '@/router/safeReplace'
 
 const route = useRoute()
 const router = useRouter()
@@ -33,7 +34,7 @@ onMounted(async () => {
         // re-mounted before the navigation settled, finish the redirect
         // here rather than re-firing the now-invalid POST.
         status.value = 'ok'
-        await safeReplace('/tree')
+        await safeReplace(router, '/tree')
         return
     }
     sessionStorage.setItem(dedupeKey, '1')
@@ -57,18 +58,8 @@ onMounted(async () => {
     // even though the user is signed in. Keep the success state and
     // let the router land where it lands.
     status.value = 'ok'
-    await safeReplace('/tree')
+    await safeReplace(router, '/tree')
 })
-
-async function safeReplace(to: string): Promise<void> {
-    try {
-        await router.replace(to)
-    } catch {
-        // Aborted / duplicate / guard-redirected navigations are not
-        // failures of the consume; the auth store is already authed
-        // and the next user interaction will pick up the right route.
-    }
-}
 </script>
 
 <template>

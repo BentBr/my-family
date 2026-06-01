@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useConfirmEmailChange } from '@/api/hooks/users'
+import { safeReplace } from '@/router/safeReplace'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,19 +38,8 @@ onMounted(async () => {
     // the consume URL with an error alert even though the email change
     // actually went through. Same shape as ConsumeView.
     status.value = 'ok'
-    await safeReplace('/account')
+    await safeReplace(router, '/account')
 })
-
-async function safeReplace(to: string): Promise<void> {
-    try {
-        await router.replace(to)
-    } catch {
-        // Aborted / duplicate / guard-redirected navigations are not a
-        // failure of the confirm; the email is already updated server-
-        // side and the next user interaction will pick up the right
-        // route.
-    }
-}
 </script>
 
 <template>

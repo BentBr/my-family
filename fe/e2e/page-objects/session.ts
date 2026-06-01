@@ -26,13 +26,12 @@ export async function signIn(page: Page, email: string): Promise<void> {
     await page.goto(rewriteEmailLink(link))
     // ConsumeView's redirect chain is POST /auth/consume → applyClaimsPayload
     // → router.replace → beforeEach guards (hydrate skipped, active-family
-    // resolve, role check) → final URL. Under CI runner load this can take
-    // past Playwright's default 5 s `toHaveURL` poll window — bumping the
-    // budget to 25 s leaves the redirect plenty of room without masking a
-    // genuine hang (per-test timeout is still 30 s). Earlier 15 s was enough
-    // most runs but flaked on the cold-start tests (alphabetical-first ones
-    // pay the V8 JIT + BE connection-pool warm-up tax that later tests don't).
-    await expect(page).toHaveURL(/\/(tree|health|families\/create|families\/pick)$/, { timeout: 25_000 })
+    // resolve, role check) → final URL. The cold-start tax that used to
+    // blow this budget (debug-API connection-pool warm-up) is now paid up
+    // front by `warmApiPool()` in global-setup, so a 15 s window is ample
+    // — the warmed consume round-trip lands in well under a second; 15 s
+    // only ever absorbs ordinary CI runner jitter, not a cold pool.
+    await expect(page).toHaveURL(/\/(tree|health|families\/create|families\/pick)$/, { timeout: 15_000 })
 }
 
 /**

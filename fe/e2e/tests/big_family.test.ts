@@ -21,89 +21,11 @@
  *   - Tree assertions read the SVG DOM once after a single navigation
  *     and a `poll` that waits for the node count to stabilise.
  */
-import type { APIRequestContext } from '@playwright/test'
-
 import { expect, test } from '../fixtures/console.fixture'
-import { rewriteEmailLink } from '../fixtures/email-links.fixture'
-import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
+import { clearMailpit } from '../fixtures/mailpit.fixture'
 import { LoginPage } from '../page-objects/login.page'
-
-// Sized to fit under the persons-list 100-row server-side clamp. A wider
-// version is gated behind that limit being raised + cursor pagination
-// being wired into the tree service. 50 persons is still plenty to catch
-// the overlap / drop-node regressions this test is here to guard against.
-const GENERATIONS = 10
-const PER_GEN = 5
-const TOTAL = GENERATIONS * PER_GEN
-
-interface BulkResult {
-    /** Map of synthetic id (`g0-3`) → server-assigned uuid. */
-    idMap: Map<string, string>
-}
-
-async function bulkSeedFamily(request: APIRequestContext, familyId: string): Promise<BulkResult> {
-    const idMap = new Map<string, string>()
-
-    // Persons go first, chunked so we don't open more than 50 sockets at
-    // once. Each chunk is awaited before the next launches; within a chunk
-    // the 50 POSTs race in parallel.
-    const CHUNK = 50
-    const personRequests: Array<() => Promise<void>> = []
-    for (let g = 0; g < GENERATIONS; g += 1) {
-        for (let i = 0; i < PER_GEN; i += 1) {
-            const key = `g${g}-${i}`
-            personRequests.push(async () => {
-                const res = await request.post('/api/v1/persons', {
-                    headers: { 'X-Family-Id': familyId },
-                    data: {
-                        given_name: `P${g}_${i}`,
-                        family_name: 'Stress',
-                        // Distribute birth years so the generation-rank algorithm
-                        // has signal: gen 0 ~1900, gen 9 ~1980.
-                        birth_date: `${1900 + g * 9}-01-01`,
-                    },
-                })
-                expect(res.ok()).toBeTruthy()
-                const body = (await res.json()) as { data: { id: string } }
-                idMap.set(key, body.data.id)
-            })
-        }
-    }
-    for (let i = 0; i < personRequests.length; i += CHUNK) {
-        await Promise.all(personRequests.slice(i, i + CHUNK).map((fn) => fn()))
-    }
-
-    // Parent links: each (g,i) for g >= 1 gets one parent at (g-1, i).
-    // A second parent at (g-1, (i+1) % PER_GEN) lets the partner pass
-    // and the duplicate detection both have something to chew on.
-    const linkRequests: Array<() => Promise<void>> = []
-    for (let g = 1; g < GENERATIONS; g += 1) {
-        for (let i = 0; i < PER_GEN; i += 1) {
-            const childId = idMap.get(`g${g}-${i}`)
-            const parentId = idMap.get(`g${g - 1}-${i}`)
-            if (childId === undefined || parentId === undefined) continue
-            linkRequests.push(async () => {
-                const res = await request.post('/api/v1/parent-links', {
-                    headers: { 'X-Family-Id': familyId },
-                    data: { child_id: childId, parent_id: parentId, kind: 'biological' },
-                })
-                if (!res.ok()) {
-                    console.error(`parent-link POST failed ${res.status()}:`, await res.text())
-                }
-                expect(res.ok()).toBeTruthy()
-            })
-        }
-    }
-    // Parent-link inserts run in a SERIALIZABLE Postgres tx; concurrent
-    // POSTs hitting the same family's row set get aborted with sqlstate
-    // 40001. Sequential is fast enough at this scale (~50ms × ~200 ≈
-    // 10s) and dodges the abort/retry dance.
-    for (const fn of linkRequests) {
-        await fn()
-    }
-
-    return { idMap }
-}
+import { PER_GEN, TOTAL, bulkSeedFamily } from '../page-objects/seed'
+import { consumeLinkFromEmail } from '../page-objects/session'
 
 test.describe('big family stress test', () => {
     // Slow test — bump the per-test timeout above the default 30s so
@@ -122,12 +44,7 @@ test.describe('big family stress test', () => {
         await login.goto()
         await login.signIn(email)
         await expect(login.sent).toBeVisible()
-        const mail = await waitForEmail((s) => /Sign in to my-fam-tree|Anmeldung bei my-fam-tree/.test(s), {
-            recipient: email,
-        })
-        const match = mail.text.match(/https?:\/\/\S+\/auth\/consume\?token=\S+/)
-        if (match === null || match[0] === undefined) throw new Error('consume link missing')
-        await page.goto(rewriteEmailLink(match[0]))
+        await page.goto(await consumeLinkFromEmail(email))
         await expect(page).toHaveURL(/\/(families\/create|families\/pick|tree)$/)
 
         // Always create a fresh family via the API. Going through the UI

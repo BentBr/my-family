@@ -15,4 +15,5 @@ pub use smtp::SmtpSender;
 pub use templates::{
     ReminderDigestArgs, render_email_change, render_invite, render_magic_link,
     render_owner_transfer_admin, render_owner_transfer_owner, render_reminder_digest,
+    render_welcome,
 };

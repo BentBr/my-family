@@ -1,9 +1,9 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures/console.fixture'
-import { rewriteEmailLink } from '../fixtures/email-links.fixture'
-import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
+import { clearMailpit } from '../fixtures/mailpit.fixture'
 import { LoginPage } from '../page-objects/login.page'
+import { consumeLinkFromEmail } from '../page-objects/session'
 
 /**
  * Verifies the public-page account dropdown drives both auth paths:
@@ -16,26 +16,20 @@ import { LoginPage } from '../page-objects/login.page'
  *   2. After signing out, "Login" runs the exact same flow with the
  *      same email and lands the SAME user back in.
  *
- * The magic-link backend doesn't distinguish first-time from returning
- * — both buttons render through `/auth/sign-in`. The test still proves
- * that the dropdown's two entries reach the form (no collision crash
- * from a duplicate `to=` target) and that the round-trip with one
- * email works twice.
+ * Both dropdown entries render through `/auth/sign-in`; the backend
+ * sends the welcome email on the first (new-user) round-trip and the
+ * plain sign-in email on the second (returning) one — `consumeLinkFromEmail`
+ * accepts either. The test proves both entries reach the form (no
+ * collision crash from a duplicate `to=` target) and that the round-trip
+ * with one email works twice.
  */
 async function consumeMagicLink(page: Page, email: string): Promise<void> {
     const login = new LoginPage(page)
     await expect(login.email).toBeVisible({ timeout: 5_000 })
     await login.signIn(email)
     await expect(login.sent).toBeVisible({ timeout: 10_000 })
-    const mail = await waitForEmail((s) => /Sign in to my-fam-tree|Anmeldung bei my-fam-tree/.test(s), {
-        recipient: email,
-    })
-    const match = mail.text.match(/https?:\/\/\S+\/auth\/consume\?token=\S+/)
-    if (match === null) throw new Error('consume link not in email body')
-    const link = match[0]
-    if (link === undefined) throw new Error('consume link match was empty')
-    await page.goto(rewriteEmailLink(link))
-    await expect(page).toHaveURL(/\/(tree|health|families\/create|families\/pick)$/, { timeout: 15_000 })
+    await page.goto(await consumeLinkFromEmail(email))
+    await expect(page).toHaveURL(/\/(tree|health|families\/create|families\/pick)$/, { timeout: 25_000 })
 }
 
 // Two full signIn cycles + dropdown navigation cleanly overruns the

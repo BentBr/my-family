@@ -6,6 +6,29 @@ import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
 import { LoginPage } from './login.page'
 
 /**
+ * Subjects the auth (magic-link) email can arrive with: the plain
+ * sign-in copy for returning users and the welcome/onboarding copy for
+ * brand-new accounts, each in EN + DE. e2e specs sign in with fresh
+ * unique emails (→ new users → welcome) AND seeded/returning emails
+ * (→ sign-in), so the matcher must accept all four.
+ */
+export const AUTH_EMAIL_SUBJECT =
+    /Sign in to my-fam-tree|Anmeldung bei my-fam-tree|Welcome to my-fam-tree|Willkommen bei my-fam-tree/
+
+/**
+ * Wait for the auth email addressed to `email`, pull the single-use
+ * `/auth/consume` link out of its body, and return it rewritten for the
+ * in-network browser. Shared by every magic-link round-trip so the
+ * subject matcher + link extraction live in exactly one place.
+ */
+export async function consumeLinkFromEmail(email: string): Promise<string> {
+    const mail = await waitForEmail((s) => AUTH_EMAIL_SUBJECT.test(s), { recipient: email })
+    const link = mail.text.match(/https?:\/\/\S+\/auth\/consume\?token=\S+/)?.[0]
+    if (link === undefined) throw new Error('consume link not in email body')
+    return rewriteEmailLink(link)
+}
+
+/**
  * Magic-link sign-in: request the link, pull it from Mailpit, consume it, and
  * land on the post-auth route. Shared by the e2e suite (previously inlined in
  * ~18 spec files).
@@ -16,14 +39,7 @@ export async function signIn(page: Page, email: string): Promise<void> {
     await login.goto()
     await login.signIn(email)
     await expect(login.sent).toBeVisible()
-    const mail = await waitForEmail((s) => /Sign in to my-fam-tree|Anmeldung bei my-fam-tree/.test(s), {
-        recipient: email,
-    })
-    const match = mail.text.match(/https?:\/\/\S+\/auth\/consume\?token=\S+/)
-    if (match === null) throw new Error('consume link not in email body')
-    const link = match[0]
-    if (link === undefined) throw new Error('consume link match was empty')
-    await page.goto(rewriteEmailLink(link))
+    await page.goto(await consumeLinkFromEmail(email))
     // ConsumeView's redirect chain is POST /auth/consume → applyClaimsPayload
     // → router.replace → beforeEach guards (hydrate skipped, active-family
     // resolve, role check) → final URL. Under CI runner load this can take

@@ -22,7 +22,7 @@ use std::time::Duration as StdDuration;
 use actix_web::{HttpRequest, HttpResponse, post, web};
 use chrono::{Duration, Utc};
 use my_fam_tree_domain::{Locale, MagicLinkRepoError};
-use my_fam_tree_email::{Locale as EmailLocale, render_magic_link};
+use my_fam_tree_email::{Locale as EmailLocale, render_magic_link, render_welcome};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -187,18 +187,24 @@ pub async fn magic_link(
 
     // Lookup or create the user. We use the user's locale (or default En) to
     // pick the email template; missing-display-name is handled downstream.
-    let user = match state
+    // `is_new_user` records whether THIS request created the account so we
+    // can send the welcome/onboarding variant instead of the bare sign-in
+    // email (both carry the same single-use link).
+    let (user, is_new_user) = match state
         .users
         .find_by_email(&email)
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?
     {
-        Some(u) => u,
-        None => state
-            .users
-            .create(&email, Locale::En)
-            .await
-            .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?,
+        Some(u) => (u, false),
+        None => (
+            state
+                .users
+                .create(&email, Locale::En)
+                .await
+                .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?,
+            true,
+        ),
     };
 
     // Issue and persist a single-use token; the helper returns the full
@@ -218,8 +224,11 @@ pub async fn magic_link(
     // slowness no longer blocks this request thread — the worker drains
     // the outbox out-of-band via SMTP with retry/backoff.
     let locale = EmailLocale::from_str_or_en(user.locale.as_str());
-    let (subject, text_body) = render_magic_link(locale, &link)
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?;
+    // Brand-new accounts get the welcome/onboarding copy; returning users
+    // get the plain sign-in email. Both embed the same single-use link.
+    let (subject, text_body) =
+        if is_new_user { render_welcome(locale, &link) } else { render_magic_link(locale, &link) }
+            .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?;
     state
         .outbox
         .enqueue(&my_fam_tree_domain::EmailOutboxInsert {

@@ -26,6 +26,18 @@ struct MagicLinkDe<'a> {
 }
 
 #[derive(Template, Debug)]
+#[template(path = "welcome_en.txt", escape = "none")]
+struct WelcomeEn<'a> {
+    link: &'a str,
+}
+
+#[derive(Template, Debug)]
+#[template(path = "welcome_de.txt", escape = "none")]
+struct WelcomeDe<'a> {
+    link: &'a str,
+}
+
+#[derive(Template, Debug)]
 #[template(path = "invite_en.txt", escape = "none")]
 struct InviteEn<'a> {
     link: &'a str,
@@ -133,6 +145,26 @@ pub fn render_magic_link(locale: Locale, link: &str) -> Result<(String, String),
     let (subject, body) = match locale {
         Locale::En => ("Sign in to my-fam-tree".to_string(), MagicLinkEn { link }.render()?),
         Locale::De => ("Anmeldung bei my-fam-tree".to_string(), MagicLinkDe { link }.render()?),
+    };
+    Ok((subject, body))
+}
+
+/// Render the welcome / onboarding email for a brand-new account.
+///
+/// Same single-use magic link as [`render_magic_link`] (the user still has
+/// to click it to get in), but with a welcoming subject + an onboarding
+/// nudge instead of the bare "you requested a sign-in link" copy. The API
+/// picks this variant only when the user row was just created by the
+/// magic-link request.
+///
+/// Returns `(subject, body)`.
+///
+/// # Errors
+/// Returns [`askama::Error`] if template rendering fails.
+pub fn render_welcome(locale: Locale, link: &str) -> Result<(String, String), askama::Error> {
+    let (subject, body) = match locale {
+        Locale::En => ("Welcome to my-fam-tree".to_string(), WelcomeEn { link }.render()?),
+        Locale::De => ("Willkommen bei my-fam-tree".to_string(), WelcomeDe { link }.render()?),
     };
     Ok((subject, body))
 }
@@ -329,6 +361,23 @@ mod tests {
         assert_eq!(subject, "Anmeldung bei my-fam-tree");
         assert!(body.contains("gültig"));
         assert!(body.contains("https://app/c/xyz"));
+    }
+
+    #[test]
+    fn renders_en_welcome_with_signin_link() {
+        let (subject, body) = render_welcome(Locale::En, "https://app/c/new").unwrap();
+        assert_eq!(subject, "Welcome to my-fam-tree");
+        // Onboarding copy AND the still-required single-use sign-in link.
+        assert!(body.to_lowercase().contains("welcome"));
+        assert!(body.contains("https://app/c/new"));
+    }
+
+    #[test]
+    fn renders_de_welcome_with_umlauts_and_signin_link() {
+        let (subject, body) = render_welcome(Locale::De, "https://app/c/new").unwrap();
+        assert_eq!(subject, "Willkommen bei my-fam-tree");
+        assert!(body.contains("gültig"));
+        assert!(body.contains("https://app/c/new"));
     }
 
     #[test]

@@ -113,6 +113,42 @@ async fn magic_link_then_consume_then_me_then_create_family_then_refresh() {
     assert!(res.response().cookies().any(|c| c.name() == "refresh"));
 }
 
+/// A magic-link request for a BRAND-NEW email sends the welcome /
+/// onboarding email; a follow-up request for the now-existing user sends
+/// the plain sign-in email. Both still carry a usable consume link.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn magic_link_sends_welcome_for_new_user_then_signin_for_returning() {
+    let stack = ephemeral_stack().await;
+    let app = test::init_service(build_app(stack.state.clone(), None)).await;
+
+    // First request — the user doesn't exist yet → welcome email.
+    let req = test::TestRequest::post()
+        .uri("/api/v1/auth/magic-link")
+        .set_json(serde_json::json!({ "email": "newcomer@example.com" }))
+        .to_request();
+    assert_eq!(test::call_service(&app, req).await.status(), 200);
+    let first = stack.fake_email.drain();
+    assert_eq!(first.len(), 1, "one email expected for the first request");
+    assert_eq!(first[0].subject, "Welcome to my-fam-tree", "new user gets the welcome email");
+    assert!(
+        !extract_token_from_link(&first[0].text_body).is_empty(),
+        "welcome email still carries a usable sign-in link"
+    );
+
+    // Second request — the user now exists → plain sign-in email.
+    let req = test::TestRequest::post()
+        .uri("/api/v1/auth/magic-link")
+        .set_json(serde_json::json!({ "email": "newcomer@example.com" }))
+        .to_request();
+    assert_eq!(test::call_service(&app, req).await.status(), 200);
+    let second = stack.fake_email.drain();
+    assert_eq!(second.len(), 1, "one email expected for the second request");
+    assert_eq!(
+        second[0].subject, "Sign in to my-fam-tree",
+        "returning user gets the plain sign-in email"
+    );
+}
+
 /// `POST /auth/logout` is reachable without any cookies and still
 /// emits clear-cookie headers. The FE calls it on any "session is
 /// gone" signal to drop stale `HttpOnly` cookies — including the

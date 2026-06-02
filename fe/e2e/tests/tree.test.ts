@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures/console.fixture'
+import { seedParentLink, seedPartnership, seedPerson } from '../page-objects/seed'
 import { signIn, createFamily } from '../page-objects/session'
 
 // The TreeNode SVG emits sibling `<text>` elements with non-UUID testids
@@ -179,18 +180,15 @@ test('hovering Klaus highlights his lineage and dims the rest', async ({ page })
     const familyId = await page.evaluate(() => localStorage.getItem('my-fam-tree:activeFamily') ?? '')
     expect(familyId).not.toBe('')
 
-    // Helper: create a person + return its server-assigned UUID. Uses the
-    // page.request context so the cookie jar + X-Family-Id header reach
-    // the API without any UI clicks.
-    const create = async (given: string, family: string, birth: string): Promise<string> => {
-        const res = await page.request.post('/api/v1/persons', {
-            headers: { 'X-Family-Id': familyId },
-            data: { given_name: given, family_name: family, birth_date: birth },
+    // Thin call-site wrappers over the shared seeding primitives — they
+    // bind `page.request` + `familyId` so the build-the-graph block below
+    // reads cleanly. The actual POST shapes live in `page-objects/seed`.
+    const create = (given: string, family: string, birth: string): Promise<string> =>
+        seedPerson(page.request, familyId, {
+            given_name: given,
+            family_name: family,
+            birth_date: birth,
         })
-        expect(res.ok()).toBeTruthy()
-        const body = (await res.json()) as { data: { id: string } }
-        return body.data.id
-    }
 
     // Build the seeded family graph (Müller + Schmidt) plus peter old as
     // Otto's parent, so the test mirrors the visual layout the user filed
@@ -209,41 +207,10 @@ test('hovering Klaus highlights his lineage and dims the rest', async ({ page })
     const emma = await create('Emma', 'Müller', '2020-05-10')
     const peter = await create('peter', 'old', '1910-05-20')
 
-    const link = async (childId: string, parentId: string): Promise<void> => {
-        const res = await page.request.post('/api/v1/parent-links', {
-            headers: { 'X-Family-Id': familyId },
-            data: { child_id: childId, parent_id: parentId, kind: 'biological' },
-        })
-        expect(res.ok()).toBeTruthy()
-    }
-    interface PartnershipBody {
-        partner_a_id: string
-        partner_b_id: string
-        kind: string
-        ended_on?: string
-        end_reason?: string
-    }
-    const partner = async (
-        aId: string,
-        bId: string,
-        opts?: { ended_on?: string; end_reason?: string },
-    ): Promise<void> => {
-        const body: PartnershipBody = { partner_a_id: aId, partner_b_id: bId, kind: 'marriage' }
-        if (opts?.ended_on !== undefined) body.ended_on = opts.ended_on
-        if (opts?.end_reason !== undefined) body.end_reason = opts.end_reason
-        const res = await page.request.post('/api/v1/partnerships', {
-            headers: { 'X-Family-Id': familyId },
-            // Field names match `PartnershipCreateReq` in
-            // `crates/api/src/routes/partnerships.rs` — `partner_a_id` /
-            // `partner_b_id`, not `a_id` / `b_id`. The shorter form was a
-            // copy-paste from the relationships tree edge JSON shape.
-            data: body,
-        })
-        if (!res.ok()) {
-            console.error(`partnership POST failed ${res.status()}:`, await res.text())
-        }
-        expect(res.ok()).toBeTruthy()
-    }
+    const link = (childId: string, parentId: string): Promise<void> =>
+        seedParentLink(page.request, familyId, childId, parentId)
+    const partner = (aId: string, bId: string, opts?: { ended_on?: string; end_reason?: string }): Promise<void> =>
+        seedPartnership(page.request, familyId, aId, bId, opts)
 
     // Parent links: Otto→peter, Klaus→Otto+Hannelore, Anna→Werner+Greta,
     // Felix→Klaus+Brigitte, Lina+Max→Klaus+Anna, Emma→Lina.

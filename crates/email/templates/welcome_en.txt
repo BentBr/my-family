@@ -1,0 +1,11 @@
+Hello and welcome!
+
+Your my-family account is ready. Use the link below to sign in for the first time — it expires in 15 minutes.
+
+{{ link }}
+
+Once you're in, you can create your family, add the people in it, and map how everyone is related.
+
+If you didn't sign up, you can safely ignore this email.
+
+— my-family

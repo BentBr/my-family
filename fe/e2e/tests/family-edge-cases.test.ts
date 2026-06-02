@@ -15,7 +15,7 @@ import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
 import { seedPerson } from '../page-objects/seed'
-import { createFamily, signIn } from '../page-objects/session'
+import { createFamily, signedInContext } from '../page-objects/session'
 
 /**
  * Owner sends an API invite at `role` and the invitee (which may or may not
@@ -66,16 +66,12 @@ async function createOwnedDuplicate(page: Page, name: string): Promise<string> {
 test('23.1: existing-account invite + re-accepting the same link is graceful, not a 500', async ({ browser }) => {
     const stamp = Date.now()
 
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
-    await signIn(owner, `edge-owner-${stamp}@example.com`)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, `edge-owner-${stamp}@example.com`)
     const familyId = await createFamily(owner, `EdgeFam-${stamp}`)
 
     // Guest signs in FIRST — they're an "existing account" with no families.
-    const guestCtx = await browser.newContext()
-    const guest = await guestCtx.newPage()
     const guestEmail = `edge-guest-${stamp}@example.com`
-    await signIn(guest, guestEmail)
+    const { context: guestCtx, page: guest } = await signedInContext(browser, guestEmail)
 
     // First accept — happy path.
     const inviteLink = await inviteAndAccept(owner, guest, familyId, guestEmail, 'user')
@@ -95,9 +91,7 @@ test('23.2: same user creates two same-named families — both appear and are di
     const stamp = Date.now()
     const name = `Müller-${stamp}`
 
-    const ctx = await browser.newContext()
-    const page = await ctx.newPage()
-    await signIn(page, `edge-dup-${stamp}@example.com`)
+    const { context: ctx, page } = await signedInContext(browser, `edge-dup-${stamp}@example.com`)
 
     // First family — unique name path (no dialog).
     const id1 = await createFamily(page, name)
@@ -130,16 +124,12 @@ test('23.3: invited into the correct same-named family — no cross-family perso
     const sameName = `Müller-${stamp}`
 
     // Owner A creates Müller #1 and a person "AliceA-{stamp}" in it.
-    const aCtx = await browser.newContext()
-    const a = await aCtx.newPage()
-    await signIn(a, `edge-a-${stamp}@example.com`)
+    const { context: aCtx, page: a } = await signedInContext(browser, `edge-a-${stamp}@example.com`)
     const fam1 = await createFamily(a, sameName)
     await seedPerson(a.request, fam1, { given_name: 'Alice', family_name: 'Mueller' })
 
     // Owner C creates Müller #2 — same name — and person "BobC-{stamp}" in it.
-    const cCtx = await browser.newContext()
-    const c = await cCtx.newPage()
-    await signIn(c, `edge-c-${stamp}@example.com`)
+    const { context: cCtx, page: c } = await signedInContext(browser, `edge-c-${stamp}@example.com`)
     const fam2 = await createFamily(c, sameName)
     await seedPerson(c.request, fam2, { given_name: 'Bob', family_name: 'Mueller' })
 
@@ -147,10 +137,8 @@ test('23.3: invited into the correct same-named family — no cross-family perso
     // fam1, B accepts → B is in fam1. Then C invites B to fam2, B accepts →
     // B is in BOTH. The second accept rotates the access cookie + setActive's
     // fam2 client-side, so B's active family is the *token's* family (fam2).
-    const bCtx = await browser.newContext()
-    const b = await bCtx.newPage()
     const bEmail = `edge-b-${stamp}@example.com`
-    await signIn(b, bEmail)
+    const { context: bCtx, page: b } = await signedInContext(browser, bEmail)
     await inviteAndAccept(a, b, fam1, bEmail, 'user')
     await expect(b.getByTestId('family-switcher')).toContainText(sameName, { timeout: 15_000 })
     await inviteAndAccept(c, b, fam2, bEmail, 'user')

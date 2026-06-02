@@ -1,14 +1,11 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { signIn } from '../page-objects/session'
+import { signedInContext } from '../page-objects/session'
 
 test('owner signs in, creates family, invites a guest, guest joins', async ({ browser }) => {
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
-
     // 1. Owner signs in (no families yet).
-    await signIn(owner, 'owner@example.com')
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, 'owner@example.com')
 
     // The family guard should bounce the owner to /families/create since
     // they have no families. Navigate explicitly to make the intent clear
@@ -54,9 +51,7 @@ test('owner signs in, creates family, invites a guest, guest joins', async ({ br
     }
 
     // 4. Guest signs in in a separate browser context (independent cookies).
-    const guestCtx = await browser.newContext()
-    const guest = await guestCtx.newPage()
-    await signIn(guest, 'guest@example.com')
+    const { context: guestCtx, page: guest } = await signedInContext(browser, 'guest@example.com')
 
     // 5. Guest follows the invite link. InviteAccept consumes it (guest is
     //    already authenticated) and the single-family auto-select then sends

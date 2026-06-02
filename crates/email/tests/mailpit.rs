@@ -96,14 +96,8 @@ async fn smtp_sender_delivers_html_with_inline_logo() {
         .expect("send html");
 
     // Find our message id, then fetch the full message to inspect parts.
-    let list: serde_json::Value = client
-        .get(format!("{api}/api/v1/messages"))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let list: serde_json::Value =
+        client.get(format!("{api}/api/v1/messages")).send().await.unwrap().json().await.unwrap();
     let id = list["messages"]
         .as_array()
         .unwrap_or(&vec![])
@@ -113,8 +107,14 @@ async fn smtp_sender_delivers_html_with_inline_logo() {
         .expect("our html message present in Mailpit")
         .to_string();
 
-    let msg: serde_json::Value =
-        client.get(format!("{api}/api/v1/message/{id}")).send().await.unwrap().json().await.unwrap();
+    let msg: serde_json::Value = client
+        .get(format!("{api}/api/v1/message/{id}"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
     // HTML alternative present and non-empty.
     assert!(

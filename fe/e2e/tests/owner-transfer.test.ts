@@ -1,48 +1,19 @@
-import type { Page } from '@playwright/test'
-
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { signIn, createFamily } from '../page-objects/session'
-
-async function inviteAndAccept(
-    ownerPage: Page,
-    inviteePage: Page,
-    familyId: string,
-    inviteeEmail: string,
-    role: 'user' | 'admin',
-): Promise<void> {
-    await clearMailpit()
-    const inviteRes = await ownerPage.request.post(`/api/v1/families/${familyId}/invites`, {
-        headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-        data: { email: inviteeEmail, role },
-    })
-    expect(inviteRes.ok()).toBeTruthy()
-    const inviteMail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
-        recipient: inviteeEmail,
-    })
-    const inviteMatch = inviteMail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)
-    if (inviteMatch === null) throw new Error('invite link not in email')
-    const inviteLink = inviteMatch[0]
-    if (inviteLink === undefined) throw new Error('invite link empty')
-    await inviteePage.goto(rewriteEmailLink(inviteLink))
-    await expect(inviteePage).toHaveURL(/\/(tree|invite\/accept)/)
-}
+import { inviteAndAccept } from '../page-objects/invites'
+import { signedInContext, createFamily } from '../page-objects/session'
 
 test('owner transfers ownership to admin; both sides confirm; roles swap', async ({ browser }) => {
     const stamp = Date.now()
 
     // Owner sets up a fresh family + invites one admin.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `xfer-owner-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     const familyId = await createFamily(owner, `XferFam-${stamp}`)
 
-    const adminCtx = await browser.newContext()
-    const admin = await adminCtx.newPage()
     const adminEmail = `xfer-admin-${stamp}@example.com`
-    await signIn(admin, adminEmail)
+    const { context: adminCtx, page: admin } = await signedInContext(browser, adminEmail)
     await inviteAndAccept(owner, admin, familyId, adminEmail, 'admin')
 
     // Owner opens /admin/members and clicks "Transfer ownership" on the

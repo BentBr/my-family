@@ -1,8 +1,7 @@
 import { expect, test } from '../fixtures/console.fixture'
-import { rewriteEmailLink } from '../fixtures/email-links.fixture'
-import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { seedPerson } from '../page-objects/seed'
-import { signIn, createFamily } from '../page-objects/session'
+import { inviteAndAccept } from '../page-objects/invites'
+import { seedContact, seedPerson } from '../page-objects/seed'
+import { signIn, signedInContext, createFamily } from '../page-objects/session'
 
 test('admin sees audit log and entity link navigates back to tree', async ({ page }) => {
     const stamp = Date.now()
@@ -18,16 +17,12 @@ test('admin sees audit log and entity link navigates back to tree', async ({ pag
 
     // Drive one contact create through the API so the audit table has a
     // row we can click. Owner has full visibility, so we use `family`.
-    const contactRes = await page.request.post(`/api/v1/persons/${personId}/contacts`, {
-        headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-        data: {
-            kind: 'url',
-            label: 'Audit row source',
-            value: { url: 'https://example.test/audit' },
-            visibility: 'family',
-        },
+    await seedContact(page.request, familyId, personId, {
+        kind: 'url',
+        label: 'Audit row source',
+        value: { url: 'https://example.test/audit' },
+        visibility: 'family',
     })
-    expect(contactRes.ok()).toBeTruthy()
 
     // The admin nav item should be visible to the owner.
     await page.goto('/tree')
@@ -113,34 +108,16 @@ test('invite audit row shows invitee email + role as a secondary line', async ({
 test('user role cannot reach /admin/audit (redirects to /tree)', async ({ browser }) => {
     const stamp = Date.now()
     // Owner sets up the family.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `audit-gate-owner-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     const familyId = await createFamily(owner, `AuditGate-${stamp}`)
 
     // Guest signs in in an isolated context to provision a user row.
-    const guestCtx = await browser.newContext()
-    const guest = await guestCtx.newPage()
     const guestEmail = `audit-gate-user-${stamp}@example.com`
-    await signIn(guest, guestEmail)
+    const { context: guestCtx, page: guest } = await signedInContext(browser, guestEmail)
 
     // Owner invites guest as `user`, guest accepts the invite link.
-    await clearMailpit()
-    const inviteRes = await owner.request.post(`/api/v1/families/${familyId}/invites`, {
-        headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-        data: { email: guestEmail, role: 'user' },
-    })
-    expect(inviteRes.ok()).toBeTruthy()
-    const inviteMail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
-        recipient: guestEmail,
-    })
-    const inviteMatch = inviteMail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)
-    if (inviteMatch === null) throw new Error('invite link not in email')
-    const inviteLink = inviteMatch[0]
-    if (inviteLink === undefined) throw new Error('invite link empty')
-    await guest.goto(rewriteEmailLink(inviteLink))
-    await expect(guest).toHaveURL(/\/(tree|invite\/accept)/)
+    await inviteAndAccept(owner, guest, familyId, guestEmail, 'user')
 
     // The guest is now a `user` member. InviteAccept already pushed to /tree
     // client-side with the active family set, so DON'T re-goto (a full reload

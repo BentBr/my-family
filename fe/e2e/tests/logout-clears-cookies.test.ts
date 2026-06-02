@@ -5,16 +5,13 @@
 // because the cookies survived the sign-out call.
 
 import { expect, test } from '../fixtures/console.fixture'
-import { signIn } from '../page-objects/session'
+import { signedInContext } from '../page-objects/session'
 
 test('signing out clears both the access and refresh HttpOnly cookies', async ({ browser }) => {
     // Fresh context so we own the cookie jar; isolated from other tests.
-    const ctx = await browser.newContext()
-    const page = await ctx.newPage()
-
     const stamp = Date.now()
     const email = `logout-cookies-${stamp}@example.com`
-    await signIn(page, email)
+    const { context: ctx, page } = await signedInContext(browser, email)
 
     // After signIn the browser holds both cookies. We don't assert specific
     // names beyond the well-known pair because the cookie SHAPE (domain /

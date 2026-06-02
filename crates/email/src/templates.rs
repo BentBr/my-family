@@ -51,7 +51,7 @@ struct Chrome<'a> {
 }
 
 impl<'a> Chrome<'a> {
-    fn new(locale: Locale, app_url: &'a str, privacy_url: &'a str) -> Self {
+    const fn new(locale: Locale, app_url: &'a str, privacy_url: &'a str) -> Self {
         let (lang, privacy_label) = match locale {
             Locale::En => ("en", "Privacy"),
             Locale::De => ("de", "Datenschutz"),
@@ -481,12 +481,14 @@ pub fn render_owner_transfer_owner(
         Locale::En => (
             "Confirm ownership transfer".to_string(),
             OwnerTransferOwnerEn { family_name, to_user_display_name, link }.render()?,
-            OwnerTransferOwnerHtmlEn { chrome, family_name, to_user_display_name, link }.render()?,
+            OwnerTransferOwnerHtmlEn { chrome, family_name, to_user_display_name, link }
+                .render()?,
         ),
         Locale::De => (
             "Eigentumsübertragung bestätigen".to_string(),
             OwnerTransferOwnerDe { family_name, to_user_display_name, link }.render()?,
-            OwnerTransferOwnerHtmlDe { chrome, family_name, to_user_display_name, link }.render()?,
+            OwnerTransferOwnerHtmlDe { chrome, family_name, to_user_display_name, link }
+                .render()?,
         ),
     };
     Ok(RenderedEmail { subject, text, html })
@@ -511,8 +513,13 @@ pub fn render_owner_transfer_admin(
     let (subject, text, html) = match locale {
         Locale::En => (
             format!("You've been offered ownership of \"{family_name}\""),
-            OwnerTransferAdminEn { family_name, from_user_display_name, to_user_display_name, link }
-                .render()?,
+            OwnerTransferAdminEn {
+                family_name,
+                from_user_display_name,
+                to_user_display_name,
+                link,
+            }
+            .render()?,
             OwnerTransferAdminHtmlEn {
                 chrome,
                 family_name,
@@ -524,8 +531,13 @@ pub fn render_owner_transfer_admin(
         ),
         Locale::De => (
             format!("Eigentumsübertragung für „{family_name}\" angeboten"),
-            OwnerTransferAdminDe { family_name, from_user_display_name, to_user_display_name, link }
-                .render()?,
+            OwnerTransferAdminDe {
+                family_name,
+                from_user_display_name,
+                to_user_display_name,
+                link,
+            }
+            .render()?,
             OwnerTransferAdminHtmlDe {
                 chrome,
                 family_name,
@@ -720,14 +732,9 @@ mod tests {
 
     #[test]
     fn renders_owner_transfer_owner_and_admin() {
-        let owner = render_owner_transfer_owner(
-            Locale::En,
-            APP,
-            "Müller",
-            "Bob",
-            "https://app/ot/owner",
-        )
-        .unwrap();
+        let owner =
+            render_owner_transfer_owner(Locale::En, APP, "Müller", "Bob", "https://app/ot/owner")
+                .unwrap();
         assert_eq!(owner.subject, "Confirm ownership transfer");
         assert!(owner.html.contains("Müller"));
         assert!(owner.html.contains("Bob"));
@@ -768,7 +775,9 @@ mod tests {
         assert!(email.text.contains("Klaus & Maria — 10. Jahrestag"));
         assert!(email.html.contains("https://app/tree"));
         // `&` in an event line must be HTML-escaped in the HTML part.
-        assert!(email.html.contains("Klaus &#38; Maria") || email.html.contains("Klaus &amp; Maria"));
+        assert!(
+            email.html.contains("Klaus &#38; Maria") || email.html.contains("Klaus &amp; Maria")
+        );
     }
 
     #[test]

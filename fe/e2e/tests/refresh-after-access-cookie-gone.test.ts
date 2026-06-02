@@ -19,18 +19,15 @@
 // /auth/sign-in (the symptom in prod).
 
 import { expect, test } from '../fixtures/console.fixture'
-import { signIn, createFamily } from '../page-objects/session'
+import { signedInContext, createFamily } from '../page-objects/session'
 
 test('the FE refreshes the session when the access cookie disappears but the refresh cookie survives', async ({
     browser,
 }) => {
     // Fresh context so we own the cookie jar — isolated from other tests.
-    const ctx = await browser.newContext()
-    const page = await ctx.newPage()
-
     const stamp = Date.now()
     const email = `refresh-after-expiry-${stamp}@example.com`
-    await signIn(page, email)
+    const { context: ctx, page } = await signedInContext(browser, email)
     await createFamily(page, `RefreshFam-${stamp}`)
     await expect(page).toHaveURL(/\/tree$/, { timeout: 15_000 })
 

@@ -2,7 +2,7 @@ import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
 import { seedPerson } from '../page-objects/seed'
-import { signIn, createFamily } from '../page-objects/session'
+import { signIn, signedInContext, createFamily } from '../page-objects/session'
 
 // Owner marks Klaus as favourite via the tree star and reloads — the
 // gold-filled state must survive the round-trip, proving the mark is
@@ -38,9 +38,7 @@ test('owner stars a tree node and the favourite survives reload', async ({ page 
 test('two users see independent favourite state on the same person', async ({ browser }) => {
     const stamp = Date.now()
     // Owner context: creates the family + invites user B.
-    const ownerCtx = await browser.newContext()
-    const ownerPage = await ownerCtx.newPage()
-    await signIn(ownerPage, `fav-pair-owner-${stamp}@example.com`)
+    const { context: ownerCtx, page: ownerPage } = await signedInContext(browser, `fav-pair-owner-${stamp}@example.com`)
     await createFamily(ownerPage, `FavPair-${stamp}`)
     const familyId = await ownerPage.evaluate(() => localStorage.getItem('my-fam-tree:activeFamily') ?? '')
     expect(familyId).not.toBe('')
@@ -71,9 +69,7 @@ test('two users see independent favourite state on the same person', async ({ br
     await expect(ownerStar).toHaveClass(/(^|\s)filled(\s|$)/)
 
     // Admin context: completely separate browser context (cookies isolated).
-    const adminCtx = await browser.newContext()
-    const adminPage = await adminCtx.newPage()
-    await signIn(adminPage, adminEmail)
+    const { context: adminCtx, page: adminPage } = await signedInContext(browser, adminEmail)
     await adminPage.goto(rewriteEmailLink(inviteLink))
     await expect(adminPage).toHaveURL(/\/tree$/, { timeout: 10_000 })
 

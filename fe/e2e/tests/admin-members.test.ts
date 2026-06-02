@@ -1,55 +1,19 @@
-import type { Page } from '@playwright/test'
-
 import { expect, test } from '../fixtures/console.fixture'
-import { rewriteEmailLink } from '../fixtures/email-links.fixture'
-import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { signIn, createFamily } from '../page-objects/session'
-
-/**
- * Owner invites `inviteeEmail` at `role` and the invitee accepts via
- * the magic email link. After this returns, the invitee is a member of
- * the family at the requested role.
- */
-async function inviteAndAccept(
-    ownerPage: Page,
-    inviteePage: Page,
-    familyId: string,
-    inviteeEmail: string,
-    role: 'user' | 'admin',
-): Promise<void> {
-    await clearMailpit()
-    const inviteRes = await ownerPage.request.post(`/api/v1/families/${familyId}/invites`, {
-        headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-        data: { email: inviteeEmail, role },
-    })
-    expect(inviteRes.ok()).toBeTruthy()
-    const inviteMail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
-        recipient: inviteeEmail,
-    })
-    const inviteMatch = inviteMail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)
-    if (inviteMatch === null) throw new Error('invite link not in email')
-    const inviteLink = inviteMatch[0]
-    if (inviteLink === undefined) throw new Error('invite link empty')
-    await inviteePage.goto(rewriteEmailLink(inviteLink))
-    await expect(inviteePage).toHaveURL(/\/(tree|invite\/accept)/)
-}
+import { inviteAndAccept } from '../page-objects/invites'
+import { signedInContext, createFamily } from '../page-objects/session'
 
 test('admin can promote a user → admin from /admin/members', async ({ browser }) => {
     const stamp = Date.now()
     // Owner sets up the family.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `members-owner-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     const familyId = await createFamily(owner, `Members-${stamp}`)
 
     // Promote a brand-new account from `user` → `admin`, signed in as
     // the owner (admins can also promote users → admin, but the seed
     // path is the same either way — owner is the simplest setup).
-    const userCtx = await browser.newContext()
-    const userPage = await userCtx.newPage()
     const userEmail = `members-user-${stamp}@example.com`
-    await signIn(userPage, userEmail)
+    const { context: userCtx, page: userPage } = await signedInContext(browser, userEmail)
     await inviteAndAccept(owner, userPage, familyId, userEmail, 'user')
 
     // Owner navigates to /admin/members and promotes the user.
@@ -78,25 +42,19 @@ test('admin can promote a user → admin from /admin/members', async ({ browser 
 test('admin sees no revoke button on another admin row', async ({ browser }) => {
     const stamp = Date.now()
     // Owner sets up the family and creates a second admin via invite.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `members-owner2-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     const familyId = await createFamily(owner, `Members2-${stamp}`)
 
     // First admin (the one whose perspective we'll inspect later).
-    const adminCtx = await browser.newContext()
-    const admin = await adminCtx.newPage()
     const adminEmail = `members-admin-${stamp}@example.com`
-    await signIn(admin, adminEmail)
+    const { context: adminCtx, page: admin } = await signedInContext(browser, adminEmail)
     await inviteAndAccept(owner, admin, familyId, adminEmail, 'admin')
 
     // A second admin so the page has an admin row the first admin
     // shouldn't be able to revoke.
-    const admin2Ctx = await browser.newContext()
-    const admin2 = await admin2Ctx.newPage()
     const admin2Email = `members-admin2-${stamp}@example.com`
-    await signIn(admin2, admin2Email)
+    const { context: admin2Ctx, page: admin2 } = await signedInContext(browser, admin2Email)
     await inviteAndAccept(owner, admin2, familyId, admin2Email, 'admin')
 
     // First admin opens /admin/members. Wait for the table to render
@@ -138,16 +96,12 @@ test('admin sees no revoke button on another admin row', async ({ browser }) => 
 
 test('owner can demote an admin → user via confirm dialog', async ({ browser }) => {
     const stamp = Date.now()
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `members-owner3-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     const familyId = await createFamily(owner, `Members3-${stamp}`)
 
-    const adminCtx = await browser.newContext()
-    const admin = await adminCtx.newPage()
     const adminEmail = `members-admin3-${stamp}@example.com`
-    await signIn(admin, adminEmail)
+    const { context: adminCtx, page: admin } = await signedInContext(browser, adminEmail)
     await inviteAndAccept(owner, admin, familyId, adminEmail, 'admin')
 
     await owner.goto('/admin/members')

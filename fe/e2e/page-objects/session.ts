@@ -1,4 +1,4 @@
-import { type Page, expect } from '@playwright/test'
+import { type Browser, type BrowserContext, type Page, expect } from '@playwright/test'
 
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
@@ -48,6 +48,23 @@ export async function signIn(page: Page, email: string): Promise<void> {
     // and a consume can queue behind it. 25 s leaves the redirect plenty
     // of room without masking a genuine hang (per-test timeout is 30 s).
     await expect(page).toHaveURL(/\/(tree|health|families\/create|families\/pick)$/, { timeout: 25_000 })
+}
+
+/**
+ * Spin up a fresh browser context, open a page, and sign a (new or
+ * returning) user in via the magic-link flow. Returns both handles so the
+ * caller can drive the page and `context.close()` it at the end. Collapses
+ * the `newContext()` → `newPage()` → `signIn()` trio that every multi-user
+ * spec repeats per participant.
+ */
+export async function signedInContext(
+    browser: Browser,
+    email: string,
+): Promise<{ context: BrowserContext; page: Page }> {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    await signIn(page, email)
+    return { context, page }
 }
 
 /**

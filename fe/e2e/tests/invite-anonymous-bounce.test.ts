@@ -1,15 +1,13 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { signIn, createFamily } from '../page-objects/session'
+import { signedInContext, createFamily } from '../page-objects/session'
 
 test('anonymous invite click signs the recipient in and joins the family in one step', async ({ browser }) => {
     const stamp = Date.now()
 
     // Owner creates a family + an invite.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
-    await signIn(owner, `invite-owner-${stamp}@example.com`)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, `invite-owner-${stamp}@example.com`)
     const familyId = await createFamily(owner, `InviteFam-${stamp}`)
 
     const inviteeEmail = `invite-anon-${stamp}@example.com`

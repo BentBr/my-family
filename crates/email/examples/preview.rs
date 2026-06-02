@@ -16,6 +16,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::print_stdout)]
 
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
@@ -61,8 +62,15 @@ fn main() {
             ),
             (
                 "owner_transfer_admin",
-                render_owner_transfer_admin(locale, APP, "Müller", "Anna Müller", "Bob Schmidt", LINK)
-                    .unwrap(),
+                render_owner_transfer_admin(
+                    locale,
+                    APP,
+                    "Müller",
+                    "Anna Müller",
+                    "Bob Schmidt",
+                    LINK,
+                )
+                .unwrap(),
             ),
         ];
         emails.push((
@@ -99,7 +107,7 @@ fn main() {
          <p>Toggle your OS light/dark appearance to preview both themes.</p>",
     );
     for (label, file) in &entries {
-        index.push_str(&format!("<a href=\"{file}\">{label}</a>"));
+        let _ = write!(index, "<a href=\"{file}\">{label}</a>");
     }
     fs::write(out.join("index.html"), index).expect("write index");
 

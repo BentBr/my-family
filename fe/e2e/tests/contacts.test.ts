@@ -1,23 +1,19 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { seedPerson } from '../page-objects/seed'
-import { signIn, createFamily } from '../page-objects/session'
+import { seedContact, seedPerson } from '../page-objects/seed'
+import { signedInContext, createFamily } from '../page-objects/session'
 
 test('contact role + visibility gates', async ({ browser }) => {
     const stamp = Date.now()
     // ----- Owner context: signs in, creates family, sets up two persons. -----
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `owner-contacts-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     const familyId = await createFamily(owner, `ContactsFam-${stamp}`)
 
     // ----- Guest context: signs in to provision a user row. -----
-    const guestCtx = await browser.newContext()
-    const guest = await guestCtx.newPage()
     const guestEmail = `guest-contacts-${stamp}@example.com`
-    await signIn(guest, guestEmail)
+    const { context: guestCtx, page: guest } = await signedInContext(browser, guestEmail)
 
     // ----- Owner creates two persons: one unlinked, one to be linked to guest. -----
     // The guest-link path respects the consent gate (`check_link_consent`
@@ -66,11 +62,7 @@ test('contact role + visibility gates', async ({ browser }) => {
         { kind: 'phone', value: { number: '+49 30 5550100' }, visibility: 'family' },
     ]
     for (const c of seedContacts) {
-        const r = await owner.request.post(`/api/v1/persons/${ownerPersonId}/contacts`, {
-            headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-            data: c,
-        })
-        expect(r.ok()).toBeTruthy()
+        await seedContact(owner.request, familyId, ownerPersonId, c)
     }
 
     // ----- Guest opens their own person — they may add a contact. -----

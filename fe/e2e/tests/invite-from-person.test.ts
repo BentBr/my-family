@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { signIn, createFamily } from '../page-objects/session'
+import { signedInContext, createFamily } from '../page-objects/session'
 
 /**
  * Create a person row through the FE so the e2e flow exercises real
@@ -29,10 +29,8 @@ async function createPerson(page: Page, givenName: string, familyName: string): 
 test('admin invites a person; recipient accepts and is linked', async ({ browser }) => {
     const stamp = Date.now()
     // Owner sets up the family + creates the person to invite-as.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `invite-owner-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     await createFamily(owner, `InviteFam-${stamp}`)
 
     // Hannelore — `createPerson` already opens the PersonDetail drawer
@@ -61,9 +59,7 @@ test('admin invites a person; recipient accepts and is linked', async ({ browser
     // New browser context = the recipient's session, isolated from the
     // owner's cookies + localStorage so the JWT carries the invitee's
     // identity.
-    const inviteeCtx = await browser.newContext()
-    const invitee = await inviteeCtx.newPage()
-    await signIn(invitee, inviteeEmail)
+    const { context: inviteeCtx, page: invitee } = await signedInContext(browser, inviteeEmail)
     await invitee.goto(rewriteEmailLink(inviteLink))
     // InviteAccept POSTs /invites/accept, hydrates the auth store, sets
     // the active family, then router.replace('/tree'). On a loaded CI
@@ -95,10 +91,8 @@ test('admin invites a person; recipient accepts and is linked', async ({ browser
 
 test('admin cancels a pending invite from /admin/invites', async ({ browser }) => {
     const stamp = Date.now()
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `invite-cancel-owner-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     const familyId = await createFamily(owner, `CancelFam-${stamp}`)
 
     // Create an invite through the API (faster than the FE for setup).

@@ -47,6 +47,21 @@ export async function seedParentLink(
     expect(res.ok()).toBeTruthy()
 }
 
+/** Create a contact on `personId`. `data` is the raw `/contacts` body
+ * (`{ kind, value, visibility, label? }`). */
+export async function seedContact(
+    request: APIRequestContext,
+    familyId: string,
+    personId: string,
+    data: Record<string, unknown>,
+): Promise<void> {
+    const res = await request.post(`/api/v1/persons/${personId}/contacts`, {
+        headers: { 'X-Family-Id': familyId },
+        data,
+    })
+    expect(res.ok()).toBeTruthy()
+}
+
 /** Create a partnership between two persons. Field names match
  * `PartnershipCreateReq` (`partner_a_id` / `partner_b_id`). */
 export async function seedPartnership(
@@ -61,8 +76,8 @@ export async function seedPartnership(
         partner_b_id: bId,
         kind: opts?.kind ?? 'marriage',
     }
-    if (opts?.ended_on !== undefined) data.ended_on = opts.ended_on
-    if (opts?.end_reason !== undefined) data.end_reason = opts.end_reason
+    if (opts?.ended_on !== undefined) data['ended_on'] = opts.ended_on
+    if (opts?.end_reason !== undefined) data['end_reason'] = opts.end_reason
     const res = await request.post('/api/v1/partnerships', {
         headers: { 'X-Family-Id': familyId },
         data,

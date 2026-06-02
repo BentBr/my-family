@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { signIn, createFamily } from '../page-objects/session'
+import { signedInContext, createFamily } from '../page-objects/session'
 
 async function createPerson(page: Page, givenName: string, familyName: string): Promise<string> {
     await page.goto('/tree')
@@ -22,10 +22,8 @@ test('user role can edit their own linked person row', async ({ browser }) => {
     const stamp = Date.now()
 
     // Owner sets up the family + creates the person to invite-as.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
     const ownerEmail = `self-edit-owner-${stamp}@example.com`
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     await createFamily(owner, `SelfEdit-${stamp}`)
 
     await createPerson(owner, 'Selma', `Tester-${stamp}`)
@@ -48,9 +46,7 @@ test('user role can edit their own linked person row', async ({ browser }) => {
     if (inviteLink === undefined) throw new Error('invite link empty')
 
     // Recipient signs in + accepts in an isolated context.
-    const inviteeCtx = await browser.newContext()
-    const invitee = await inviteeCtx.newPage()
-    await signIn(invitee, inviteeEmail)
+    const { context: inviteeCtx, page: invitee } = await signedInContext(browser, inviteeEmail)
     await invitee.goto(rewriteEmailLink(inviteLink))
     await expect(invitee).toHaveURL(/\/tree$/)
 

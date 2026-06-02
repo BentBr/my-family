@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { signIn, createFamily } from '../page-objects/session'
+import { signIn, signedInContext, createFamily } from '../page-objects/session'
 
 const TREE_NODE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -190,10 +190,7 @@ test('user-role member sees read-only PersonDetail with relations panels but no 
     // 1) Owner context: sign in, create family, seed Anna so we have
     //    someone to view, then invite the user-role guest via REST and
     //    capture the accept link off mailpit.
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
-
-    await signIn(owner, ownerEmail)
+    const { context: ownerCtx, page: owner } = await signedInContext(browser, ownerEmail)
     await createFamily(owner, `PDUser-${stamp}`)
     await owner.goto('/tree')
     const annaId = await addPerson(owner, 'Anna', 'Müller', '1968-08-11')
@@ -232,9 +229,7 @@ test('user-role member sees read-only PersonDetail with relations panels but no 
     if (inviteLink === undefined) throw new Error('invite link match was empty')
 
     // 2) User context: sign in in a separate browser context.
-    const userCtx = await browser.newContext()
-    const user = await userCtx.newPage()
-    await signIn(user, userEmail)
+    const { context: userCtx, page: user } = await signedInContext(browser, userEmail)
 
     // 3) Follow the invite link to join the owner's family as `user` role.
     await user.goto(rewriteEmailLink(inviteLink))

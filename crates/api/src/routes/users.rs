@@ -328,9 +328,8 @@ pub async fn email_change_request(
     let link = format!("{}/account/email-change/consume?token={}", state.cfg.web.public_url, token);
     let locale = EmailLocale::from_str_or_en(user.locale.as_str());
     let name = Some(user.display_name.trim()).filter(|n| !n.is_empty());
-    let email_msg =
-        render_email_change(locale, &state.cfg.web.public_url, &link, &new_email, name)
-            .map_err(internal)?;
+    let email_msg = render_email_change(locale, &state.cfg.web.public_url, &link, &new_email, name)
+        .map_err(internal)?;
     // Outbox-enqueue (durable, async). The worker drains via SMTP.
     state
         .outbox

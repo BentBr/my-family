@@ -23,7 +23,7 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
-import { createFamily, signIn } from '../page-objects/session'
+import { createFamily, signedInContext } from '../page-objects/session'
 
 test('an invite-accept mints a refresh cookie so the recipient stays signed in past access-token expiry', async ({
     browser,
@@ -31,9 +31,10 @@ test('an invite-accept mints a refresh cookie so the recipient stays signed in p
     const stamp = Date.now()
 
     // ----- Owner: sign in + create family + send invite. -----
-    const ownerCtx = await browser.newContext()
-    const owner = await ownerCtx.newPage()
-    await signIn(owner, `invite-refresh-owner-${stamp}@example.com`)
+    const { context: ownerCtx, page: owner } = await signedInContext(
+        browser,
+        `invite-refresh-owner-${stamp}@example.com`,
+    )
     const ownerFamilyId = await createFamily(owner, `InviteRefreshFam-${stamp}`)
     expect(ownerFamilyId).not.toEqual('')
 

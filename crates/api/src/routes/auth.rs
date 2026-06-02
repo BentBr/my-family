@@ -228,7 +228,7 @@ pub async fn magic_link(
     // Brand-new accounts get the welcome/onboarding copy; returning users
     // get the plain sign-in email, greeted by name when we have one. Both
     // embed the same single-use link.
-    let email = if is_new_user {
+    let msg = if is_new_user {
         render_welcome(locale, app_url, &link)
     } else {
         let name = Some(user.display_name.trim()).filter(|n| !n.is_empty());
@@ -240,9 +240,9 @@ pub async fn magic_link(
         .enqueue(&my_fam_tree_domain::EmailOutboxInsert {
             kind: my_fam_tree_domain::EmailOutboxKind::MAGIC_LINK.to_string(),
             to_addr: user.email.clone(),
-            subject: email.subject,
-            text_body: email.text,
-            html_body: Some(email.html),
+            subject: msg.subject,
+            text_body: msg.text,
+            html_body: Some(msg.html),
         })
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?;

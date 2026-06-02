@@ -1,6 +1,6 @@
 Hallo und herzlich willkommen!
 
-Dein my-family-Konto ist bereit. Mit dem folgenden Link meldest du dich zum ersten Mal an — er ist 15 Minuten gültig.
+Dein My Family Tree-Konto ist bereit. Mit dem folgenden Link meldest du dich zum ersten Mal an — er ist 15 Minuten gültig.
 
 {{ link }}
 
@@ -8,4 +8,4 @@ Sobald du angemeldet bist, kannst du deine Familie anlegen, Personen hinzufügen
 
 Wenn du dich nicht registriert hast, kannst du diese E-Mail ignorieren.
 
-— my-family
+— My Family Tree

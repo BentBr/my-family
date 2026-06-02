@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}Bestätige die Eigentumsübertragung von „{{ family_name }}“.{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Eigentum</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">Eigentumsübertragung bestätigen</h1>
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Du hast eine Eigentumsübertragung von &bdquo;<strong class="em-text" style="color:#241E18;">{{ family_name }}</strong>&ldquo; an <strong class="em-text" style="color:#241E18;">{{ to_user_display_name }}</strong> gestartet. Klicke innerhalb der nächsten Stunde auf den Button unten, um dies von deiner Seite zu bestätigen.</p>
+</td></tr>
+<tr><td style="padding:24px 40px 0;">
+  <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" class="em-surf2 em-border" style="background:#F6F1EB;border:1px solid #E9DFD3;border-radius:14px;">
+    <tr><td style="padding:18px 20px;">
+      <p class="em-muted" style="margin:0 0 4px;font:500 12.5px Roboto,Arial,sans-serif;color:#938679;">Stammbaum</p>
+      <p class="em-text" style="margin:0 0 14px;font:700 17px Roboto,Arial,sans-serif;color:#241E18;">{{ family_name }}</p>
+      <p class="em-muted" style="margin:0;font:500 13.5px Roboto,Arial,sans-serif;color:#938679;">Neue Inhaberin / neuer Inhaber &nbsp; <span class="em-pill" style="display:inline-block;padding:3px 11px;background:#FBEADF;border-radius:999px;font:700 12.5px Roboto,Arial,sans-serif;color:#DD5A12;vertical-align:middle;">{{ to_user_display_name }}</span></p>
+    </td></tr>
+  </table>
+</td></tr>
+{% call ui::button(link, "Übertragung bestätigen") %}{% endcall %}
+{% call ui::paste_link(link, "Button funktioniert nicht? Diesen Link einf&uuml;gen:") %}{% endcall %}
+{% call ui::note("Falls du das nicht beantragt hast, ignoriere diese E-Mail.") %}{% endcall %}
+{% endblock %}

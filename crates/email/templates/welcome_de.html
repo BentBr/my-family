@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}Dein {{ chrome.app_name }}-Konto ist bereit — dein Anmeldelink ist enthalten.{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Willkommen</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">Hallo und herzlich willkommen!</h1>
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Dein {{ chrome.app_name }}-Konto ist bereit. Mit dem Button unten meldest du dich zum ersten Mal an &mdash; er ist 15 Minuten g&uuml;ltig.</p>
+</td></tr>
+{% call ui::button(link, "Zum ersten Mal anmelden") %}{% endcall %}
+{% call ui::paste_link(link, "Button funktioniert nicht? Diesen Link einf&uuml;gen:") %}{% endcall %}
+<tr><td style="padding:26px 40px 0;">
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Sobald du drin bist, kannst du deine Familie anlegen, die Personen darin hinzuf&uuml;gen und festhalten, wie alle miteinander verwandt sind.</p>
+</td></tr>
+{% call ui::note("Falls du dich nicht angemeldet hast, kannst du diese E-Mail einfach ignorieren.") %}{% endcall %}
+{% endblock %}

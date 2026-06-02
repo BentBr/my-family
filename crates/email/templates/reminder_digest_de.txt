@@ -5,4 +5,4 @@
 Zum Stammbaum: {{ tree_link }}
 Erinnerungen verwalten: {{ manage_link }}
 
-— my-family
+— My Family Tree

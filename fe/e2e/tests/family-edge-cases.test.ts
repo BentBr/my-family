@@ -14,6 +14,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
+import { seedPerson } from '../page-objects/seed'
 import { createFamily, signIn } from '../page-objects/session'
 
 /**
@@ -34,7 +35,7 @@ async function inviteAndAccept(
         data: { email: inviteeEmail, role },
     })
     expect(inviteRes.ok()).toBeTruthy()
-    const mail = await waitForEmail((s) => /Join the .+ family on my-fam-tree|Einladung zur Familie/.test(s), {
+    const mail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
         recipient: inviteeEmail,
     })
     const m = mail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)
@@ -133,26 +134,14 @@ test('23.3: invited into the correct same-named family — no cross-family perso
     const a = await aCtx.newPage()
     await signIn(a, `edge-a-${stamp}@example.com`)
     const fam1 = await createFamily(a, sameName)
-    {
-        const r = await a.request.post('/api/v1/persons', {
-            headers: { 'X-Family-Id': fam1, 'content-type': 'application/json' },
-            data: { given_name: 'Alice', family_name: 'Mueller' },
-        })
-        expect(r.ok()).toBeTruthy()
-    }
+    await seedPerson(a.request, fam1, { given_name: 'Alice', family_name: 'Mueller' })
 
     // Owner C creates Müller #2 — same name — and person "BobC-{stamp}" in it.
     const cCtx = await browser.newContext()
     const c = await cCtx.newPage()
     await signIn(c, `edge-c-${stamp}@example.com`)
     const fam2 = await createFamily(c, sameName)
-    {
-        const r = await c.request.post('/api/v1/persons', {
-            headers: { 'X-Family-Id': fam2, 'content-type': 'application/json' },
-            data: { given_name: 'Bob', family_name: 'Mueller' },
-        })
-        expect(r.ok()).toBeTruthy()
-    }
+    await seedPerson(c.request, fam2, { given_name: 'Bob', family_name: 'Mueller' })
 
     // Guest B signs in (existing account, no families), then A invites B to
     // fam1, B accepts → B is in fam1. Then C invites B to fam2, B accepts →

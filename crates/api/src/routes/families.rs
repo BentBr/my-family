@@ -509,8 +509,9 @@ pub async fn invite(
 
     let link = format!("{}/invite/accept?token={}", state.cfg.web.public_url, token);
     let locale = EmailLocale::from_str_or_en(&claims.locale);
-    let (subject, body_text) =
-        render_invite(locale, &active.name, &claims.email, &link).map_err(internal)?;
+    let email_msg =
+        render_invite(locale, &state.cfg.web.public_url, &active.name, &claims.email, &link)
+            .map_err(internal)?;
     // Enqueue into the durable outbox — the worker drains via SMTP. Same
     // request thread used to block on SmtpSender.send(); now it returns as
     // soon as Postgres has the row.
@@ -519,9 +520,9 @@ pub async fn invite(
         .enqueue(&my_fam_tree_domain::EmailOutboxInsert {
             kind: my_fam_tree_domain::EmailOutboxKind::INVITE.to_string(),
             to_addr: email.clone(),
-            subject,
-            text_body: body_text,
-            html_body: None,
+            subject: email_msg.subject,
+            text_body: email_msg.text,
+            html_body: Some(email_msg.html),
         })
         .await
         .map_err(internal)?;

@@ -1,9 +1,9 @@
-Hello!
+{% if name.is_empty() %}Hello!{% else %}Hello {{ name }},{% endif %}
 
-You requested a sign-in link for my-family. Click the link below to sign in. It expires in 15 minutes.
+You requested a sign-in link for My Family Tree. Click the link below to sign in. It expires in 15 minutes.
 
 {{ link }}
 
 If you didn't ask for this, you can safely ignore the email.
 
-— my-family
+— My Family Tree

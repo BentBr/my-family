@@ -49,3 +49,6 @@ Thumbs.db
 vite.log
 worker.log
 api.log
+
+# Playwright MCP scratch output (snapshots, screenshots, console logs)
+.playwright-mcp/

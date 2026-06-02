@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}Your {{ chrome.app_name }} account is ready — your sign-in link is inside.{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Welcome</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">Hello and welcome!</h1>
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Your {{ chrome.app_name }} account is ready. Use the button below to sign in for the first time &mdash; it expires in 15 minutes.</p>
+</td></tr>
+{% call ui::button(link, "Sign in for the first time") %}{% endcall %}
+{% call ui::paste_link(link, "Button not working? Paste this link:") %}{% endcall %}
+<tr><td style="padding:26px 40px 0;">
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Once you&rsquo;re in, you can create your family, add the people in it, and map how everyone is related.</p>
+</td></tr>
+{% call ui::note("If you didn&rsquo;t sign up, you can safely ignore this email.") %}{% endcall %}
+{% endblock %}

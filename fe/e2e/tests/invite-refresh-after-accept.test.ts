@@ -45,7 +45,7 @@ test('an invite-accept mints a refresh cookie so the recipient stays signed in p
     })
     expect(inviteRes.ok()).toBeTruthy()
 
-    const mail = await waitForEmail((s) => /Join the .+ family on my-fam-tree|Einladung zur Familie/.test(s), {
+    const mail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
         recipient: guestEmail,
     })
     const m = mail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)

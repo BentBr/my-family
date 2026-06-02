@@ -129,7 +129,8 @@ async fn magic_link_sends_welcome_for_new_user_then_signin_for_returning() {
     assert_eq!(test::call_service(&app, req).await.status(), 200);
     let first = stack.fake_email.drain();
     assert_eq!(first.len(), 1, "one email expected for the first request");
-    assert_eq!(first[0].subject, "Welcome to my-fam-tree", "new user gets the welcome email");
+    assert_eq!(first[0].subject, "Welcome to My Family Tree", "new user gets the welcome email");
+    assert!(first[0].html_body.is_some(), "welcome email carries an HTML alternative");
     assert!(
         !extract_token_from_link(&first[0].text_body).is_empty(),
         "welcome email still carries a usable sign-in link"
@@ -144,9 +145,10 @@ async fn magic_link_sends_welcome_for_new_user_then_signin_for_returning() {
     let second = stack.fake_email.drain();
     assert_eq!(second.len(), 1, "one email expected for the second request");
     assert_eq!(
-        second[0].subject, "Sign in to my-fam-tree",
+        second[0].subject, "Sign in to My Family Tree",
         "returning user gets the plain sign-in email"
     );
+    assert!(second[0].html_body.is_some(), "sign-in email carries an HTML alternative");
 }
 
 /// `POST /auth/logout` is reachable without any cookies and still

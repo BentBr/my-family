@@ -1,0 +1,14 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}Dein Anmeldelink für {{ chrome.app_name }} (15 Minuten gültig).{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Anmeldung</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">Dein Anmeldelink</h1>
+  {% if !name.is_empty() %}<p class="em-text2" style="margin:0 0 10px;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Hallo {{ name }},</p>{% endif %}
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Du hast einen Anmeldelink für {{ chrome.app_name }} angefordert. Klicke auf den Button unten, um dich anzumelden &mdash; er ist 15 Minuten g&uuml;ltig.</p>
+</td></tr>
+{% call ui::button(link, "Bei My Family Tree anmelden") %}{% endcall %}
+{% call ui::paste_link_box(link, "Button funktioniert nicht? Diesen Link einf&uuml;gen:") %}{% endcall %}
+{% call ui::note("Wenn du das nicht warst, kannst du diese E-Mail ignorieren.") %}{% endcall %}
+{% endblock %}

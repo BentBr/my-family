@@ -1,0 +1,13 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}{{ inviter_name }} invited you to the “{{ family_name }}” family on {{ chrome.app_name }}.{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Invitation</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">Hello!</h1>
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;"><strong class="em-text" style="color:#241E18;">{{ inviter_name }}</strong> invited you to join the &ldquo;<strong class="em-text" style="color:#241E18;">{{ family_name }}</strong>&rdquo; family on {{ chrome.app_name }}. Click below to accept &mdash; the invite expires in 14 days.</p>
+</td></tr>
+{% call ui::button(link, "Accept invitation") %}{% endcall %}
+{% call ui::paste_link(link, "Button not working? Paste this link:") %}{% endcall %}
+{% call ui::note("If you weren&rsquo;t expecting this, you can safely ignore this email.") %}{% endcall %}
+{% endblock %}

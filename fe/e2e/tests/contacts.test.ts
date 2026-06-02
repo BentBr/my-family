@@ -1,6 +1,7 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
+import { seedPerson } from '../page-objects/seed'
 import { signIn, createFamily } from '../page-objects/session'
 
 test('contact role + visibility gates', async ({ browser }) => {
@@ -31,19 +32,9 @@ test('contact role + visibility gates', async ({ browser }) => {
     // creates the family_memberships row and wires
     // `persons.linked_user_id` in a single round-trip.
 
-    const ownerPersonRes = await owner.request.post('/api/v1/persons', {
-        headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-        data: { given_name: 'OwnerPerson' },
-    })
-    expect(ownerPersonRes.ok()).toBeTruthy()
-    const ownerPersonId = ((await ownerPersonRes.json()) as { data: { id: string } }).data.id
+    const ownerPersonId = await seedPerson(owner.request, familyId, { given_name: 'OwnerPerson' })
 
-    const guestPersonRes = await owner.request.post('/api/v1/persons', {
-        headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-        data: { given_name: 'GuestPerson' },
-    })
-    expect(guestPersonRes.ok()).toBeTruthy()
-    const guestPersonId = ((await guestPersonRes.json()) as { data: { id: string } }).data.id
+    const guestPersonId = await seedPerson(owner.request, familyId, { given_name: 'GuestPerson' })
 
     // ----- Owner invites guest with the person-targeted invite. Guest
     //       accepts — this creates the membership AND wires
@@ -54,7 +45,7 @@ test('contact role + visibility gates', async ({ browser }) => {
         data: { email: guestEmail, role: 'user', person_id: guestPersonId },
     })
     expect(inviteRes.ok()).toBeTruthy()
-    const inviteMail = await waitForEmail((s) => /Join the .+ family on my-fam-tree|Einladung zur Familie/.test(s), {
+    const inviteMail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
         recipient: guestEmail,
     })
     const inviteMatch = inviteMail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)

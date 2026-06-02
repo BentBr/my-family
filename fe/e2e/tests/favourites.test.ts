@@ -1,6 +1,7 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
+import { seedPerson } from '../page-objects/seed'
 import { signIn, createFamily } from '../page-objects/session'
 
 // Owner marks Klaus as favourite via the tree star and reloads — the
@@ -14,15 +15,8 @@ test('owner stars a tree node and the favourite survives reload', async ({ page 
     const familyId = await page.evaluate(() => localStorage.getItem('my-fam-tree:activeFamily') ?? '')
     expect(familyId).not.toBe('')
 
-    const create = async (given: string, birth: string): Promise<string> => {
-        const res = await page.request.post('/api/v1/persons', {
-            headers: { 'X-Family-Id': familyId },
-            data: { given_name: given, family_name: 'Star', birth_date: birth },
-        })
-        expect(res.ok()).toBeTruthy()
-        const body = (await res.json()) as { data: { id: string } }
-        return body.data.id
-    }
+    const create = (given: string, birth: string): Promise<string> =>
+        seedPerson(page.request, familyId, { given_name: given, family_name: 'Star', birth_date: birth })
     const klausId = await create('Klaus', '1960-04-12')
 
     await page.goto('/tree')
@@ -52,12 +46,11 @@ test('two users see independent favourite state on the same person', async ({ br
     expect(familyId).not.toBe('')
 
     // Create Klaus + invite admin B.
-    const klausRes = await ownerPage.request.post('/api/v1/persons', {
-        headers: { 'X-Family-Id': familyId },
-        data: { given_name: 'Klaus', family_name: 'Star', birth_date: '1960-04-12' },
+    const klausId = await seedPerson(ownerPage.request, familyId, {
+        given_name: 'Klaus',
+        family_name: 'Star',
+        birth_date: '1960-04-12',
     })
-    expect(klausRes.ok()).toBeTruthy()
-    const klausId = ((await klausRes.json()) as { data: { id: string } }).data.id
 
     const adminEmail = `fav-pair-admin-${stamp}@example.com`
     await clearMailpit()
@@ -65,7 +58,7 @@ test('two users see independent favourite state on the same person', async ({ br
         data: { email: adminEmail, role: 'admin' },
     })
     expect(inviteRes.ok()).toBeTruthy()
-    const inviteMail = await waitForEmail((s) => /Join the .+ family on my-fam-tree|Einladung zur Familie/.test(s), {
+    const inviteMail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
         recipient: adminEmail,
     })
     const inviteLink = inviteMail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)?.[0]
@@ -103,15 +96,8 @@ test('upcoming favourites pill filters to caller favourites', async ({ page }) =
     await createFamily(page, `FavUp-${stamp}`)
     const familyId = await page.evaluate(() => localStorage.getItem('my-fam-tree:activeFamily') ?? '')
 
-    const create = async (given: string, birth: string): Promise<string> => {
-        const res = await page.request.post('/api/v1/persons', {
-            headers: { 'X-Family-Id': familyId },
-            data: { given_name: given, family_name: 'Up', birth_date: birth },
-        })
-        expect(res.ok()).toBeTruthy()
-        const body = (await res.json()) as { data: { id: string } }
-        return body.data.id
-    }
+    const create = (given: string, birth: string): Promise<string> =>
+        seedPerson(page.request, familyId, { given_name: given, family_name: 'Up', birth_date: birth })
     const klausId = await create('Klaus', '1960-04-12')
     const annaId = await create('Anna', '1962-08-22')
 

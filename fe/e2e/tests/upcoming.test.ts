@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures/console.fixture'
+import { seedPerson } from '../page-objects/seed'
 import { signIn, createFamily } from '../page-objects/session'
 
 test('upcoming dates page filters by birthday + anniversary toggles', async ({ page }) => {
@@ -11,15 +12,8 @@ test('upcoming dates page filters by birthday + anniversary toggles', async ({ p
 
     // Seed a small family graph via the API directly: two people with
     // different birthdays + one open partnership (wedding anniversary).
-    const create = async (given: string, family: string, birth: string): Promise<string> => {
-        const res = await page.request.post('/api/v1/persons', {
-            headers: { 'X-Family-Id': familyId },
-            data: { given_name: given, family_name: family, birth_date: birth },
-        })
-        expect(res.ok()).toBeTruthy()
-        const body = (await res.json()) as { data: { id: string } }
-        return body.data.id
-    }
+    const create = (given: string, family: string, birth: string): Promise<string> =>
+        seedPerson(page.request, familyId, { given_name: given, family_name: family, birth_date: birth })
     const a = await create('Anna', 'Schmidt', '1985-06-04')
     const b = await create('Ben', 'Schmidt', '1986-09-22')
     // Open marriage ⇒ wedding_anniversary event.

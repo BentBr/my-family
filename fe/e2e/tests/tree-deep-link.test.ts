@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures/console.fixture'
+import { seedPerson } from '../page-objects/seed'
 import { signIn, createFamily } from '../page-objects/session'
 
 // Returns an ISO date `daysFromNow` calendar days in the future but with
@@ -23,17 +24,11 @@ test('upcoming row click centers the person and opens the drawer', async ({ page
     expect(familyId).not.toBe('')
 
     // One person with a near-future birthday so Upcoming has exactly one row.
-    const createRes = await page.request.post('/api/v1/persons', {
-        headers: { 'X-Family-Id': familyId },
-        data: {
-            given_name: 'Centerable',
-            family_name: 'Person',
-            birth_date: birthdayInDays(3),
-        },
+    const personId = await seedPerson(page.request, familyId, {
+        given_name: 'Centerable',
+        family_name: 'Person',
+        birth_date: birthdayInDays(3),
     })
-    expect(createRes.ok()).toBeTruthy()
-    const created = (await createRes.json()) as { data: { id: string } }
-    const personId = created.data.id
 
     await page.goto('/upcoming')
     await expect(page.getByTestId('upcoming-page')).toBeVisible()
@@ -73,14 +68,12 @@ test('second upcoming click reopens the drawer (cached tree.data path)', async (
     const familyId = await page.evaluate(() => localStorage.getItem('my-fam-tree:activeFamily') ?? '')
     expect(familyId).not.toBe('')
 
-    const create = async (given: string, days: number): Promise<string> => {
-        const res = await page.request.post('/api/v1/persons', {
-            headers: { 'X-Family-Id': familyId },
-            data: { given_name: given, family_name: 'Multi', birth_date: birthdayInDays(days) },
+    const create = (given: string, days: number): Promise<string> =>
+        seedPerson(page.request, familyId, {
+            given_name: given,
+            family_name: 'Multi',
+            birth_date: birthdayInDays(days),
         })
-        const body = (await res.json()) as { data: { id: string } }
-        return body.data.id
-    }
     const firstId = await create('First', 3)
     const secondId = await create('Second', 7)
 

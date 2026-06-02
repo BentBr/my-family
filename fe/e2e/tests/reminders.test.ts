@@ -1,5 +1,6 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
+import { seedPerson } from '../page-objects/seed'
 import { signIn, createFamily } from '../page-objects/session'
 
 // The worker exposes POST /__test/advance-clock only when built with
@@ -20,11 +21,11 @@ test('a daily digest email fires 7 days before a birthday when reminders are on'
     // Birthday 2026-06-15. With the worker clock advanced to 2026-06-08 (below)
     // and the default 7-day lead, the next occurrence (2026-06-15) is exactly
     // the target, so this person fires.
-    const res = await page.request.post('/api/v1/persons', {
-        headers: { 'X-Family-Id': familyId },
-        data: { given_name: 'Birthday', family_name: 'Person', birth_date: '1990-06-15' },
+    await seedPerson(page.request, familyId, {
+        given_name: 'Birthday',
+        family_name: 'Person',
+        birth_date: '1990-06-15',
     })
-    expect(res.ok()).toBeTruthy()
 
     // Smoke: the Account reminder panel mounts in the production build.
     await page.goto('/account')

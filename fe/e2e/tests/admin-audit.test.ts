@@ -1,6 +1,7 @@
 import { expect, test } from '../fixtures/console.fixture'
 import { rewriteEmailLink } from '../fixtures/email-links.fixture'
 import { clearMailpit, waitForEmail } from '../fixtures/mailpit.fixture'
+import { seedPerson } from '../page-objects/seed'
 import { signIn, createFamily } from '../page-objects/session'
 
 test('admin sees audit log and entity link navigates back to tree', async ({ page }) => {
@@ -10,13 +11,10 @@ test('admin sees audit log and entity link navigates back to tree', async ({ pag
 
     // Seed one person — the API mutation below will write a `(create,
     // contact)` audit row whose `entity_person_id` resolves to this id.
-    const personRes = await page.request.post('/api/v1/persons', {
-        headers: { 'X-Family-Id': familyId, 'content-type': 'application/json' },
-        data: { given_name: 'AuditTarget', family_name: 'Person' },
+    const personId = await seedPerson(page.request, familyId, {
+        given_name: 'AuditTarget',
+        family_name: 'Person',
     })
-    expect(personRes.ok()).toBeTruthy()
-    const personBody = (await personRes.json()) as { data: { id: string } }
-    const personId = personBody.data.id
 
     // Drive one contact create through the API so the audit table has a
     // row we can click. Owner has full visibility, so we use `family`.
@@ -134,7 +132,7 @@ test('user role cannot reach /admin/audit (redirects to /tree)', async ({ browse
         data: { email: guestEmail, role: 'user' },
     })
     expect(inviteRes.ok()).toBeTruthy()
-    const inviteMail = await waitForEmail((s) => /Join the .+ family on my-fam-tree|Einladung zur Familie/.test(s), {
+    const inviteMail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
         recipient: guestEmail,
     })
     const inviteMatch = inviteMail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)

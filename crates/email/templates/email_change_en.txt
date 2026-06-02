@@ -1,9 +1,9 @@
-Hello!
+{% if name.is_empty() %}Hello!{% else %}Hello {{ name }},{% endif %}
 
-You requested to change your my-family email to {{ new_email }}. Confirm the change by clicking the link below within 15 minutes:
+You requested to change your My Family Tree email to {{ new_email }}. Confirm the change by clicking the link below within 15 minutes:
 
 {{ link }}
 
 If you didn't request this, you can safely ignore this email — your account stays unchanged.
 
-— my-family
+— My Family Tree

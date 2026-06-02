@@ -224,19 +224,25 @@ pub async fn magic_link(
     // slowness no longer blocks this request thread — the worker drains
     // the outbox out-of-band via SMTP with retry/backoff.
     let locale = EmailLocale::from_str_or_en(user.locale.as_str());
+    let app_url = state.cfg.web.public_url.as_str();
     // Brand-new accounts get the welcome/onboarding copy; returning users
-    // get the plain sign-in email. Both embed the same single-use link.
-    let (subject, text_body) =
-        if is_new_user { render_welcome(locale, &link) } else { render_magic_link(locale, &link) }
-            .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?;
+    // get the plain sign-in email, greeted by name when we have one. Both
+    // embed the same single-use link.
+    let email = if is_new_user {
+        render_welcome(locale, app_url, &link)
+    } else {
+        let name = Some(user.display_name.trim()).filter(|n| !n.is_empty());
+        render_magic_link(locale, app_url, &link, name)
+    }
+    .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?;
     state
         .outbox
         .enqueue(&my_fam_tree_domain::EmailOutboxInsert {
             kind: my_fam_tree_domain::EmailOutboxKind::MAGIC_LINK.to_string(),
             to_addr: user.email.clone(),
-            subject,
-            text_body,
-            html_body: None,
+            subject: email.subject,
+            text_body: email.text,
+            html_body: Some(email.html),
         })
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?;

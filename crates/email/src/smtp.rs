@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use lettre::message::header::ContentType;
-use lettre::message::{Mailbox, MultiPart, SinglePart};
+use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::transport::smtp::client::Tls;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
@@ -8,6 +8,14 @@ use url::Url;
 
 use crate::error::EmailError;
 use crate::sender::{EmailSender, OutboundEmail};
+
+/// Brand logo embedded inline in every HTML email (the sloth mark, a copy of
+/// the FE's `apple-touch-icon`). Referenced as `cid:logo` from `_base.html`
+/// and attached as a `multipart/related` inline part so it renders without
+/// any externally-hosted asset (and without tripping image-blocking).
+const LOGO_PNG: &[u8] = include_bytes!("../assets/logo.png");
+/// Content-ID the HTML's `<img src="cid:logo">` resolves against.
+const LOGO_CID: &str = "logo";
 
 #[derive(Debug, Clone)]
 pub struct SmtpSender {
@@ -93,12 +101,24 @@ impl EmailSender for SmtpSender {
         }
 
         let message = if let Some(html) = email.html_body {
+            // multipart/alternative { text, multipart/related { html, logo } }
+            // so clients pick the HTML part and resolve its `cid:logo` image
+            // from the inline attachment; text-only clients fall back cleanly.
+            let png = ContentType::parse("image/png")
+                .map_err(|e| EmailError::Build(e.to_string()))?;
+            let logo = Attachment::new_inline(LOGO_CID.to_string()).body(LOGO_PNG.to_vec(), png);
             builder.multipart(
                 MultiPart::alternative()
                     .singlepart(
                         SinglePart::builder().header(ContentType::TEXT_PLAIN).body(email.text_body),
                     )
-                    .singlepart(SinglePart::builder().header(ContentType::TEXT_HTML).body(html)),
+                    .multipart(
+                        MultiPart::related()
+                            .singlepart(
+                                SinglePart::builder().header(ContentType::TEXT_HTML).body(html),
+                            )
+                            .singlepart(logo),
+                    ),
             )
         } else {
             builder.singlepart(

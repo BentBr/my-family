@@ -1,0 +1,14 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}Your sign-in link for {{ chrome.app_name }} (expires in 15 minutes).{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Sign in</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">Here&rsquo;s your sign-in link</h1>
+  {% if !name.is_empty() %}<p class="em-text2" style="margin:0 0 10px;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Hello {{ name }},</p>{% endif %}
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">You requested a sign-in link for {{ chrome.app_name }}. Click the button below to sign in &mdash; it expires in 15 minutes.</p>
+</td></tr>
+{% call ui::button(link, "Sign in to My Family Tree") %}{% endcall %}
+{% call ui::paste_link_box(link, "Button not working? Paste this link:") %}{% endcall %}
+{% call ui::note("If you didn&rsquo;t ask for this, you can safely ignore this email.") %}{% endcall %}
+{% endblock %}

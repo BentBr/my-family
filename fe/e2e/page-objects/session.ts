@@ -13,7 +13,7 @@ import { LoginPage } from './login.page'
  * (→ sign-in), so the matcher must accept all four.
  */
 export const AUTH_EMAIL_SUBJECT =
-    /Sign in to my-fam-tree|Anmeldung bei my-fam-tree|Welcome to my-fam-tree|Willkommen bei my-fam-tree/
+    /Sign in to My Family Tree|Anmeldung bei My Family Tree|Welcome to My Family Tree|Willkommen bei My Family Tree/
 
 /**
  * Wait for the auth email addressed to `email`, pull the single-use

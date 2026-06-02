@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="{{ chrome.lang }}" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+  <title>{{ chrome.app_name }}</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+
+  <!-- CSS reset (Cerberus / Stack Overflow short-transactional base) -->
+  <style>
+    html, body { margin: 0 auto !important; padding: 0 !important; height: 100% !important; width: 100% !important; }
+    * { -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+    div[style*="margin: 16px 0"] { margin: 0 !important; }
+    table, td { mso-table-lspace: 0pt !important; mso-table-rspace: 0pt !important; }
+    table { border: 0; border-spacing: 0; border-collapse: collapse; }
+    #MessageViewBody, #MessageWebViewDiv { width: 100% !important; }
+    img { -ms-interpolation-mode: bicubic; }
+    a { text-decoration: none; }
+    a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font-size: inherit !important; font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important; }
+    u + #body a { color: inherit; text-decoration: none; }
+  </style>
+  <!--[if gte mso 9]>
+  <xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+  <![endif]-->
+
+  <!-- Rounded corners, button hover, responsive + dark-mode (clients that support <style>) -->
+  <style>
+    .bar { border-radius: 18px; }
+    .btn-fill:hover { background: #DD5A12 !important; }
+    .btn-fill:hover a { background: #DD5A12 !important; }
+
+    @media screen and (max-width: 640px) {
+      .sm-px { padding-left: 20px !important; padding-right: 20px !important; }
+      .sm-p { padding: 24px !important; }
+      .bar { border-radius: 0 !important; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body, center, .em-body { background: #100D0A !important; }
+      .em-card { background: #1A1511 !important; }
+      .em-surf2 { background: #221C16 !important; }
+      .em-border { border-color: #322A22 !important; }
+      .em-text { color: #F4ECE3 !important; }
+      .em-text2 { color: #BFB2A4 !important; }
+      .em-muted { color: #8C7E70 !important; }
+      .em-wordmark { color: #F4ECE3 !important; }
+      .em-mono { color: #E6D9CB !important; }
+      .em-pill { background: #3A2415 !important; }
+      .em-link { color: #BFB2A4 !important; }
+    }
+  </style>
+</head>
+
+<body width="100%" id="body" style="margin:0;padding:0 !important;background:#FBF8F4;mso-line-height-rule:exactly;">
+  <center class="em-body" style="width:100%;background:#FBF8F4;">
+    <!--[if mso | IE]>
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FBF8F4;"><tr><td>
+    <![endif]-->
+
+    <!-- preheader: inbox snippet, hidden in body -->
+    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;font-family:Roboto,Arial,sans-serif;">{% block preheader %}{% endblock %}</div>
+
+    <div class="email-container" style="max-width:600px;margin:0 auto;">
+      <!--[if mso]>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center"><tr><td>
+      <![endif]-->
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+        <!-- header: logo + wordmark -->
+        <tr><td class="sm-px" style="padding:24px 30px 8px;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left"><tr>
+            <td valign="middle">
+              <a href="{{ chrome.app_url }}" style="text-decoration:none;">
+                <img src="cid:logo" alt="{{ chrome.app_name }}" width="36" height="36" border="0" style="display:block;width:36px;height:36px;border-radius:9px;" />
+              </a>
+            </td>
+            <td valign="middle" style="padding-left:11px;">
+              <a href="{{ chrome.app_url }}" class="em-wordmark" style="font:700 16px Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.01em;text-decoration:none;">{{ chrome.app_name }}</a>
+            </td>
+          </tr></table>
+        </td></tr>
+
+        <!-- card -->
+        <tr><td class="sm-px" style="padding:14px 24px 36px;">
+          <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" class="em-card em-border bar" style="background:#FFFFFF;border:1px solid #E9DFD3;border-radius:18px;">
+            {% block card %}{% endblock %}
+          </table>
+        </td></tr>
+
+        <!-- footer -->
+        <tr><td class="sm-px" style="padding:0 30px 36px;">
+          <p class="em-muted" style="margin:0;font:400 12px/1.6 Roboto,Arial,sans-serif;color:#938679;text-align:center;">&mdash; {{ chrome.app_name }} &nbsp;&middot;&nbsp; <a href="{{ chrome.privacy_url }}" class="em-muted em-link" style="color:#938679;text-decoration:underline;">{{ chrome.privacy_label }}</a></p>
+        </td></tr>
+      </table>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </div>
+
+    <!--[if mso | IE]></td></tr></table><![endif]-->
+  </center>
+</body>
+</html>

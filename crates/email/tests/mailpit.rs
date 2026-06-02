@@ -62,3 +62,70 @@ async fn smtp_sender_delivers_to_mailpit() {
         .collect();
     assert!(subjects.contains(&subject), "subject not found in Mailpit: {subjects:?}");
 }
+
+/// An HTML email (the new transactional path) must arrive as
+/// `multipart/alternative` carrying both a non-empty HTML part AND the
+/// inline brand logo, reachable from the HTML via `cid:logo`. This pins the
+/// `multipart/related { html, logo }` wiring in [`SmtpSender`].
+#[tokio::test]
+async fn smtp_sender_delivers_html_with_inline_logo() {
+    let Ok(dsn) = std::env::var("EMAIL_DSN") else {
+        eprintln!("EMAIL_DSN not set; skipping");
+        return;
+    };
+    let api = std::env::var("MAILPIT_API").unwrap_or_else(|_| "http://localhost:8025".to_string());
+    let client = reqwest::Client::new();
+
+    client.delete(format!("{api}/api/v1/messages")).send().await.expect("delete prior messages");
+
+    let sender = SmtpSender::from_dsn(&dsn, "test", "no-reply@my-fam-tree.local", None, 5)
+        .expect("build smtp sender");
+
+    let subject = format!("html-{}", uuid::Uuid::new_v4());
+    sender
+        .send(OutboundEmail {
+            to_addr: "recipient@example.com".into(),
+            to_name: Some("Recipient".into()),
+            subject: subject.clone(),
+            text_body: "plain fallback".into(),
+            html_body: Some(
+                r#"<html><body><img src="cid:logo" alt="logo"/><p>hello</p></body></html>"#.into(),
+            ),
+        })
+        .await
+        .expect("send html");
+
+    // Find our message id, then fetch the full message to inspect parts.
+    let list: serde_json::Value = client
+        .get(format!("{api}/api/v1/messages"))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let id = list["messages"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .find(|m| m["Subject"].as_str() == Some(subject.as_str()))
+        .and_then(|m| m["ID"].as_str())
+        .expect("our html message present in Mailpit")
+        .to_string();
+
+    let msg: serde_json::Value =
+        client.get(format!("{api}/api/v1/message/{id}")).send().await.unwrap().json().await.unwrap();
+
+    // HTML alternative present and non-empty.
+    assert!(
+        msg["HTML"].as_str().is_some_and(|h| h.contains("hello")),
+        "HTML part missing or empty: {:?}",
+        msg["HTML"]
+    );
+    // Inline logo attachment present and addressable via cid:logo.
+    let inline = msg["Inline"].as_array().cloned().unwrap_or_default();
+    assert!(
+        inline.iter().any(|a| a["ContentID"].as_str() == Some("logo")),
+        "inline logo (ContentID=logo) not found; inline parts: {inline:?}"
+    );
+}

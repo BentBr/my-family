@@ -64,8 +64,9 @@ pub async fn handle(state: &WorkerState, job: &ReminderJob) -> anyhow::Result<()
     let tree_link = format!("{}/tree", state.web_public_url);
     let manage_link = format!("{}/account", state.web_public_url);
 
-    let (subject, body) = render_reminder_digest(
+    let email = render_reminder_digest(
         locale,
+        &state.web_public_url,
         &ReminderDigestArgs {
             lead_days: prefs.lead_days,
             lines: &lines,
@@ -79,9 +80,9 @@ pub async fn handle(state: &WorkerState, job: &ReminderJob) -> anyhow::Result<()
         .send(OutboundEmail {
             to_addr: user.email.clone(),
             to_name: None,
-            subject,
-            text_body: body,
-            html_body: None,
+            subject: email.subject,
+            text_body: email.text,
+            html_body: Some(email.html),
         })
         .await;
 

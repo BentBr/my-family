@@ -91,11 +91,13 @@ async fn send_transfer_emails(
 ) -> Result<(), ApiError> {
     let from_locale = EmailLocale::from_str_or_en(from_locale_str);
     let to_locale = EmailLocale::from_str_or_en(to_locale_str);
-    let (from_subject, from_body) =
-        render_owner_transfer_owner(from_locale, family_name, to_display_name, from_link)
+    let app_url = state.cfg.web.public_url.as_str();
+    let from_msg =
+        render_owner_transfer_owner(from_locale, app_url, family_name, to_display_name, from_link)
             .map_err(internal)?;
-    let (to_subject, to_body) = render_owner_transfer_admin(
+    let to_msg = render_owner_transfer_admin(
         to_locale,
+        app_url,
         family_name,
         from_display_name,
         to_display_name,
@@ -104,18 +106,15 @@ async fn send_transfer_emails(
     .map_err(internal)?;
 
     // Both confirmation emails go through the durable outbox; the worker
-    // drains via SMTP with retry. The outbox row only carries to_addr —
-    // the SMTP `To:` display name (`Some(from_display_name)`) used to be
-    // a nicety on the synchronous path and isn't captured today.
-    let _ = (from_display_name, to_display_name);
+    // drains via SMTP with retry.
     state
         .outbox
         .enqueue(&my_fam_tree_domain::EmailOutboxInsert {
             kind: my_fam_tree_domain::EmailOutboxKind::OWNER_TRANSFER_FROM.to_string(),
             to_addr: from_email.to_owned(),
-            subject: from_subject,
-            text_body: from_body,
-            html_body: None,
+            subject: from_msg.subject,
+            text_body: from_msg.text,
+            html_body: Some(from_msg.html),
         })
         .await
         .map_err(internal)?;
@@ -124,9 +123,9 @@ async fn send_transfer_emails(
         .enqueue(&my_fam_tree_domain::EmailOutboxInsert {
             kind: my_fam_tree_domain::EmailOutboxKind::OWNER_TRANSFER_TO.to_string(),
             to_addr: to_email.to_owned(),
-            subject: to_subject,
-            text_body: to_body,
-            html_body: None,
+            subject: to_msg.subject,
+            text_body: to_msg.text,
+            html_body: Some(to_msg.html),
         })
         .await
         .map_err(internal)?;

@@ -5,4 +5,4 @@
 See your tree: {{ tree_link }}
 Manage reminders: {{ manage_link }}
 
-— my-family
+— My Family Tree

@@ -1,0 +1,14 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}Bestätige deine neue {{ chrome.app_name }}-E-Mail-Adresse.{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Konto</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">E-Mail-Änderung bestätigen</h1>
+  {% if !name.is_empty() %}<p class="em-text2" style="margin:0 0 10px;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Hallo {{ name }},</p>{% endif %}
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;">Du möchtest deine {{ chrome.app_name }}-E-Mail auf <strong class="em-text" style="color:#241E18;">{{ new_email }}</strong> ändern. Bestätige die Änderung mit dem Button unten innerhalb von 15 Minuten.</p>
+</td></tr>
+{% call ui::button(link, "E-Mail-Änderung bestätigen") %}{% endcall %}
+{% call ui::paste_link(link, "Button funktioniert nicht? Diesen Link einf&uuml;gen:") %}{% endcall %}
+{% call ui::note("Wenn du das nicht warst, ignoriere diese E-Mail — dein Konto bleibt unverändert.") %}{% endcall %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "_base.html" %}
+{% import "_macros.html" as ui %}
+{% block preheader %}{{ inviter_name }} hat dich zur Familie „{{ family_name }}“ bei {{ chrome.app_name }} eingeladen.{% endblock %}
+{% block card %}
+<tr><td style="padding:40px 40px 0;">
+  <p class="em-muted" style="margin:0 0 14px;font:700 12px Roboto,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#C56A2E;">Einladung</p>
+  <h1 class="em-text" style="margin:0 0 14px;font:700 28px/1.25 Roboto,Arial,sans-serif;color:#241E18;letter-spacing:-.02em;">Hallo!</h1>
+  <p class="em-text2" style="margin:0;font:400 16px/1.6 Roboto,Arial,sans-serif;color:#5C5247;"><strong class="em-text" style="color:#241E18;">{{ inviter_name }}</strong> hat dich zur Familie &bdquo;<strong class="em-text" style="color:#241E18;">{{ family_name }}</strong>&ldquo; bei {{ chrome.app_name }} eingeladen. Klicke unten, um anzunehmen &mdash; die Einladung ist 14 Tage g&uuml;ltig.</p>
+</td></tr>
+{% call ui::button(link, "Einladung annehmen") %}{% endcall %}
+{% call ui::paste_link(link, "Button funktioniert nicht? Diesen Link einf&uuml;gen:") %}{% endcall %}
+{% call ui::note("Falls du das nicht erwartet hast, kannst du diese E-Mail einfach ignorieren.") %}{% endcall %}
+{% endblock %}

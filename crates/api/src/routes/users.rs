@@ -327,16 +327,19 @@ pub async fn email_change_request(
     // verify they really initiated the change.
     let link = format!("{}/account/email-change/consume?token={}", state.cfg.web.public_url, token);
     let locale = EmailLocale::from_str_or_en(user.locale.as_str());
-    let (subject, text_body) = render_email_change(locale, &link, &new_email).map_err(internal)?;
+    let name = Some(user.display_name.trim()).filter(|n| !n.is_empty());
+    let email_msg =
+        render_email_change(locale, &state.cfg.web.public_url, &link, &new_email, name)
+            .map_err(internal)?;
     // Outbox-enqueue (durable, async). The worker drains via SMTP.
     state
         .outbox
         .enqueue(&my_fam_tree_domain::EmailOutboxInsert {
             kind: my_fam_tree_domain::EmailOutboxKind::EMAIL_CHANGE.to_string(),
             to_addr: user.email.clone(),
-            subject,
-            text_body,
-            html_body: None,
+            subject: email_msg.subject,
+            text_body: email_msg.text,
+            html_body: Some(email_msg.html),
         })
         .await
         .map_err(internal)?;

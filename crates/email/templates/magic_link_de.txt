@@ -1,9 +1,9 @@
-Hallo!
+{% if name.is_empty() %}Hallo!{% else %}Hallo {{ name }},{% endif %}
 
-Du hast einen Anmeldelink für my-family angefordert. Klicke auf den folgenden Link, um dich anzumelden. Er ist 15 Minuten gültig.
+Du hast einen Anmeldelink für My Family Tree angefordert. Klicke auf den folgenden Link, um dich anzumelden. Er ist 15 Minuten gültig.
 
 {{ link }}
 
 Wenn du das nicht warst, kannst du diese E-Mail ignorieren.
 
-— my-family
+— My Family Tree

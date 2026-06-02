@@ -39,7 +39,7 @@ test('user role can edit their own linked person row', async ({ browser }) => {
     await owner.getByTestId('person-invite-submit').click()
     await expect(owner.getByTestId('person-invite-modal')).toBeHidden()
 
-    const inviteMail = await waitForEmail((s) => /Join the .+ family on my-fam-tree|Einladung zur Familie/.test(s), {
+    const inviteMail = await waitForEmail((s) => /Join the .+ family on My Family Tree|Einladung zur Familie/.test(s), {
         recipient: inviteeEmail,
     })
     const inviteMatch = inviteMail.text.match(/https?:\/\/\S+\/invite\/accept\?token=\S+/)

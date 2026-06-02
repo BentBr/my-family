@@ -104,6 +104,19 @@ async fn seed_users(pool: &PgPool) -> anyhow::Result<()> {
         (SEED_BOB_USER_ID, "bob@example.com", "Bob"),
     ];
     for (id, email, display_name) in rows {
+        // Reconcile a "squatter": a row holding this seed email under a
+        // DIFFERENT id (e.g. the user signed up / was invited with the
+        // same address through the app, which mints a random uuid). The
+        // upsert below conflicts on `id`, so it can't see that collision
+        // and would trip the `users_email_key` unique constraint. Delete
+        // the squatter first (its dependent rows cascade — the seeder is
+        // an explicit dev/test reset). The seed-id row, if present, is
+        // left for the upsert to refresh in place.
+        sqlx::query("DELETE FROM users WHERE email = $1 AND id <> $2")
+            .bind(email)
+            .bind(id)
+            .execute(pool)
+            .await?;
         sqlx::query(
             "INSERT INTO users (id, email, display_name, locale, email_verified_at) \
              VALUES ($1, $2, $3, 'en', now()) \

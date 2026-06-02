@@ -146,3 +146,4 @@ BUSL-1.1 — see [LICENSE](./LICENSE) and the plain-English [LICENSING.md](./LIC
 - image history / archive
 - event function with invites / image gallery (birthdays, marriages, funerals etc.)
 - message function
+- translated dropdowns (like sex), only storing keys and showing translations based on FE (+ having a proper migration)

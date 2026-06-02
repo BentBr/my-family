@@ -359,7 +359,10 @@
                 "remove": "Entfernt",
                 "begin": "Gestartet",
                 "confirm": "Bestätigt",
-                "complete": "Abgeschlossen"
+                "complete": "Abgeschlossen",
+                "set_photo": "Foto gesetzt",
+                "clear_photo": "Foto entfernt",
+                "claim": "Beansprucht"
             },
             "empty": "Keine Einträge entsprechen den Filtern.",
             "rowsPerPage": "Einträge pro Seite",

@@ -359,7 +359,10 @@
                 "remove": "Revoked",
                 "begin": "Started",
                 "confirm": "Confirmed",
-                "complete": "Completed"
+                "complete": "Completed",
+                "set_photo": "Set photo",
+                "clear_photo": "Removed photo",
+                "claim": "Claimed"
             },
             "empty": "No audit entries match the current filters.",
             "rowsPerPage": "Rows per page",

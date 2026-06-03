@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.18](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.17...core-v0.1.18) (2026-06-03)
+
+
+### Features
+
+* **fe:** localized SEO/OG metadata for every page + scraper-visible defaults ([320d5a7](https://github.com/BentBr/my-fam-tree/commit/320d5a7de2f76747a3871314ad920c61315a64de))
+
+
+### Bug Fixes
+
+* **ci:** post ci-gate commit status from dispatched release-PR runs ([c50e19f](https://github.com/BentBr/my-fam-tree/commit/c50e19ff5010923724fc8ca2b0e49397e49333cc))
+* **fe:** account-menu Login/Register work while already on /auth/sign-in ([a7de44d](https://github.com/BentBr/my-fam-tree/commit/a7de44d265e7f6bb239460605f06216228fec1bb))
+
 ## [0.1.17](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.16...core-v0.1.17) (2026-06-03)
 
 

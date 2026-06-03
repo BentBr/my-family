@@ -4,9 +4,11 @@ on:
     pull_request:
     push:
         branches: [main]
-    # Callable from release-please.yml so the release PR (created via
-    # GITHUB_TOKEN, which can't trigger `pull_request`) still gets CI.
-    workflow_call:
+    # Dispatched by release-please.yml onto the release PR branch: the PR is
+    # pushed via GITHUB_TOKEN, which can't trigger `pull_request`, but API
+    # `workflow_dispatch` is the documented exception to that rule. Check runs
+    # then attach to the PR head SHA natively (incl. the required `ci-gate`).
+    workflow_dispatch:
 
 env:
     CARGO_TERM_COLOR: always

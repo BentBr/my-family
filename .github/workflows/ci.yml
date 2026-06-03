@@ -853,18 +853,25 @@ jobs:
                   ./target/debug/worker > /tmp/worker.log 2>&1 &
                   echo "WORKER_PID=$!" >> "$GITHUB_ENV"
                   # Readiness: the listener answers advance-clock once bound.
-                  # Pick a far-future target so the resulting OffsetClock has
-                  # a positive offset — outbox rows the api inserts during
-                  # e2e will be `next_attempt_at <= worker now()` and drain
-                  # normally. The previous 2020 probe set a negative offset
-                  # that left every outbox row "in the future" forever, so
-                  # the suite spent 30 min waiting for emails the worker
-                  # would not send. Fail the step explicitly if the listener
-                  # never answers.
+                  # Probe with the CURRENT time — advance-clock MUTATES the
+                  # OffsetClock, so the probe target becomes the worker's
+                  # "now" for the whole suite. The previous 2099 probe left
+                  # the worker ~73 years in the future: the janitor's cutoff
+                  # then classified EVERY freshly-minted single-use token
+                  # (magic-link / invite / refresh) as expired and deleted
+                  # them on each sweep, so sign-ins whose mint→consume window
+                  # straddled a sweep intermittently 401'd ("link may have
+                  # expired") — the long-standing e2e auth flake. `now` keeps
+                  # the offset ≈ 0 (so api-inserted outbox rows are still due
+                  # and drain — the failure mode of the even older 2020 probe,
+                  # which set a NEGATIVE offset) without time-travelling the
+                  # janitor. Fail the step explicitly if the listener never
+                  # answers.
                   ready=0
                   for i in $(seq 1 30); do
                       if curl -fsS -X POST http://localhost:9091/__test/advance-clock \
-                        -H 'content-type: application/json' -d '{"to":"2099-01-01T00:00:00Z"}' >/dev/null; then
+                        -H 'content-type: application/json' \
+                        -d "{\"to\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" >/dev/null; then
                           ready=1
                           break
                       fi

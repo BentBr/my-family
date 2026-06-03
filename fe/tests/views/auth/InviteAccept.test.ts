@@ -110,9 +110,9 @@ describe('InviteAccept', () => {
             families: [{ id: 'f-1', name: 'F', role: 'owner' }],
         } as never)
         mutateAsync.mockResolvedValueOnce({ data: { family: { id: 'f-1', name: 'F' } } })
-        await mountInvite('token=tok')
+        await mountInvite('token=tok-auth-ok')
         await flushPromises()
-        expect(mutateAsync).toHaveBeenCalledWith('tok')
+        expect(mutateAsync).toHaveBeenCalledWith('tok-auth-ok')
     })
 
     it('authenticated user sees error when accept rejects', async () => {
@@ -124,9 +124,23 @@ describe('InviteAccept', () => {
             families: [],
         } as never)
         mutateAsync.mockRejectedValueOnce(new Error('bad'))
-        const w = await mountInvite('token=tok')
+        const w = await mountInvite('token=tok-auth-err')
         await flushPromises()
         expect(w.find('[data-testid="invite-error"]').exists()).toBe(true)
+    })
+
+    it('a second mount of the same invite token does not re-POST (module dedup)', async () => {
+        // Guards the CI route double-mount: a component-scoped ref can't dedupe
+        // across instances, so both would POST and the 2nd would 401 → stick
+        // the page on /invite/accept.
+        mutateAsync.mockResolvedValueOnce({ data: { family: { id: 'f-1', name: 'F' } } })
+        await mountInvite('token=tok-double')
+        await flushPromises()
+        expect(mutateAsync).toHaveBeenCalledTimes(1)
+        const second = await mountInvite('token=tok-double')
+        await flushPromises()
+        expect(mutateAsync).toHaveBeenCalledTimes(1)
+        expect(second.find('[data-testid="invite-error"]').exists()).toBe(false)
     })
 
     it('renders mismatch alert when accept fails with invite_email_mismatch violation', async () => {
@@ -140,7 +154,7 @@ describe('InviteAccept', () => {
             },
         })
         mutateAsync.mockRejectedValueOnce(validationError)
-        const w = await mountInvite('token=tok')
+        const w = await mountInvite('token=tok-mismatch')
         // Two flushes: one for the mutateAsync rejection to settle, one
         // for the resulting `status.value = 'mismatch'` to re-render.
         await flushPromises()

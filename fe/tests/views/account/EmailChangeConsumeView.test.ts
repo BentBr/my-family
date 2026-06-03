@@ -63,4 +63,18 @@ describe('EmailChangeConsumeView', () => {
         await flushPromises()
         expect(w.find('[data-testid="email-change-error"]').exists()).toBe(true)
     })
+
+    it('a second mount of the same token does not re-POST (module dedup)', async () => {
+        // Guards the CI route double-mount: a component-scoped ref can't dedupe
+        // across instances, so both would burn the token and the 2nd's 401
+        // would surface a spurious error.
+        mutateAsync.mockResolvedValueOnce({})
+        await mountView('token=ec-double')
+        await flushPromises()
+        expect(mutateAsync).toHaveBeenCalledTimes(1)
+        const second = await mountView('token=ec-double')
+        await flushPromises()
+        expect(mutateAsync).toHaveBeenCalledTimes(1)
+        expect(second.find('[data-testid="email-change-error"]').exists()).toBe(false)
+    })
 })

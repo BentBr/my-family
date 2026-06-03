@@ -1,12 +1,3 @@
-<script lang="ts">
-// MODULE scope (shared across every component instance, unlike `<script
-// setup>` which re-runs per mount): tokens whose consume this page load has
-// already fired. A route double-mount in CI creates a SECOND instance; it
-// reads this set and short-circuits instead of re-POSTing the single-use
-// token. In-memory so it can't be defeated by blocked/partitioned storage.
-const consumingTokens = new Set<string>()
-</script>
-
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useConsumeMagicLink } from '@/api/hooks/auth'
 import { safeReplace } from '@/router/safeReplace'
 import { useAuthStore } from '@/stores/auth'
-import { safeSession } from '@/utils/safeStorage'
+import { claimSingleUseToken } from '@/utils/singleUseToken'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,18 +16,18 @@ const auth = useAuthStore()
 const status = ref<'pending' | 'ok' | 'error'>('pending')
 
 // Single-use tokens MUST only be consumed once, but the same token can fire
-// the consume TWICE — Vite dev HMR re-mounts in dev, and in CI the route
-// double-mounts. We guard at three layers, strongest first:
-//
-//   1. `consumingTokens` (module-level, declared above) — set synchronously
-//      before the POST. Survives a re-mount within the same page load and,
-//      unlike `sessionStorage`, can't be silently defeated when storage is
-//      blocked/partitioned (observed at the in-network `:5173` origin in CI,
-//      where the storage-only dedup let BOTH mounts POST → the 2nd got a 401
-//      "already consumed" that clobbered the 1st's success with the error card).
-//   2. `sessionStorage` — persists across a full reload (cleared on logout).
-//   3. The catch below treats an error as benign when the auth store is
-//      already authenticated (a racing fire's 200 hydrated it).
+// the consume TWICE (Vite dev HMR re-mount; CI route double-mount). Guarded
+// two ways:
+//   1. `claimSingleUseToken` — module-level, in-memory, shared across
+//      instances; the first mount claims + POSTs, a racing re-mount
+//      short-circuits. Can't be defeated by blocked storage (the magic-link
+//      flow consumes at the in-network `:5173` origin where sessionStorage is
+//      partitioned — a storage-only guard let BOTH mounts POST, and the 2nd's
+//      401 clobbered the 1st's success with the error card).
+//   2. The catch treats an error as benign when the auth store is already
+//      authenticated — i.e. a racing fire's 200 hydrated it (safe here because
+//      magic-link sign-in only authenticates ON success: pre-consume the user
+//      is anonymous, so `authenticated` can only mean a sibling fire won).
 
 onMounted(async () => {
     const token = String(route.query['token'] ?? '')
@@ -44,26 +35,21 @@ onMounted(async () => {
         status.value = 'error'
         return
     }
-    const dedupeKey = `my-fam-tree:consumed:${token}`
-    if (consumingTokens.has(token) || safeSession.get(dedupeKey) !== null) {
+    if (!claimSingleUseToken(token)) {
         // A sibling mount already fired this token's consume; finish the
         // redirect here rather than re-firing the now-single-use POST.
         status.value = 'ok'
         await safeReplace(router, '/tree')
         return
     }
-    consumingTokens.add(token)
-    safeSession.set(dedupeKey, '1')
     try {
         await mutation.mutateAsync(token)
     } catch {
         // A concurrent mount may have already consumed this token (its 200
         // hydrated the auth store); our 401 is then benign — we ARE signed
         // in — so fall through to the success redirect rather than showing
-        // the error card. Only a genuine failure (no prior success) is an
-        // error; roll back the storage marker so a manual refresh can retry.
+        // the error card. Only a genuine failure (still anonymous) is an error.
         if (auth.status !== 'authenticated') {
-            safeSession.remove(dedupeKey)
             status.value = 'error'
             return
         }

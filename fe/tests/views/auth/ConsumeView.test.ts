@@ -44,10 +44,9 @@ describe('ConsumeView', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         mutateAsync.mockReset()
-        // ConsumeView dedupes by token in BOTH sessionStorage and a
-        // module-level Set that tests can't clear — so every case uses a
-        // UNIQUE token to avoid a prior case's marker short-circuiting it.
-        sessionStorage.clear()
+        // ConsumeView dedupes via a module-level claim set (claimSingleUseToken)
+        // that tests can't clear — so every case uses a UNIQUE token to avoid a
+        // prior case's claim short-circuiting it.
     })
 
     it('shows pending then ok on success', async () => {

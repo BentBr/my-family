@@ -8,6 +8,7 @@ import { safeReplace } from '@/router/safeReplace'
 import { useActiveFamilyStore } from '@/stores/activeFamily'
 import { useAuthStore } from '@/stores/auth'
 import type { FamilyId } from '@/types/brand'
+import { claimSingleUseToken, releaseSingleUseToken } from '@/utils/singleUseToken'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,19 +18,29 @@ const family = useActiveFamilyStore()
 const accept = useAcceptInvite()
 type Status = 'pending' | 'ok' | 'mismatch' | 'error'
 const status = ref<Status>('pending')
-const processed = ref(false)
 
 // The invite token is itself the auth factor server-side: anonymous
 // callers get a fresh user keyed on `invite.email`, signed-in callers
-// are validated against the invite's email. Either way we POST the
-// token in one round-trip — no sessionStorage stashing, no detour
-// through /auth/sign-in.
+// are validated against the invite's email. Either way we POST the token
+// in one round-trip — no detour through /auth/sign-in.
+//
+// `claimSingleUseToken` (module-level, in-memory) dedupes a CI route
+// double-mount: a component-scoped ref can't (each instance has its own),
+// so both would POST and the 2nd would 401 on the consumed token and stick
+// the page on /invite/accept. No "benign when authenticated" shortcut here
+// (unlike ConsumeView): a signed-in user is ALREADY authenticated, so that
+// signal can't distinguish a racing fire from a real mismatch/error.
 onMounted(async () => {
-    if (processed.value) return
-    processed.value = true
     const token = String(route.query['token'] ?? '')
     if (token === '') {
         status.value = 'error'
+        return
+    }
+    if (!claimSingleUseToken(token)) {
+        // A sibling mount is already accepting this invite; converge on the
+        // post-accept route instead of re-POSTing the single-use token.
+        status.value = 'ok'
+        await safeReplace(router, '/tree')
         return
     }
     try {
@@ -74,8 +85,9 @@ async function signOutAndRetry(): Promise<void> {
     const token = String(route.query['token'] ?? '')
     await auth.logout()
     // Re-enter this view with the same token. New (anonymous) session
-    // hits the invite-as-auth code path on the BE.
-    processed.value = false
+    // hits the invite-as-auth code path on the BE. Release the claim so the
+    // re-mount actually re-POSTs instead of short-circuiting as a dup.
+    releaseSingleUseToken(token)
     status.value = 'pending'
     await router.replace({ path: '/invite/accept', query: { token } })
 }

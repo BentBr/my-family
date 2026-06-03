@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useConfirmEmailChange } from '@/api/hooks/users'
 import { safeReplace } from '@/router/safeReplace'
+import { claimSingleUseToken } from '@/utils/singleUseToken'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,17 +13,21 @@ const { t } = useI18n()
 const confirm = useConfirmEmailChange()
 const status = ref<'pending' | 'ok' | 'error'>('pending')
 
-// Single-use token guard — Vue's dev double-mount semantics would otherwise
-// burn the token twice and surface a spurious error to the user. Same pattern
-// as ConsumeView for the magic-link flow.
-const processed = ref(false)
-
+// Single-use token guard. A component-scoped ref can't dedupe a CI route
+// double-mount (each instance has its own), so both would burn the token and
+// the 2nd's 401 would surface a spurious error. `claimSingleUseToken` is
+// module-level + in-memory — shared across instances, immune to blocked
+// storage. Same guard as ConsumeView / InviteAccept.
 onMounted(async () => {
-    if (processed.value) return
-    processed.value = true
     const token = String(route.query['token'] ?? '')
     if (token === '') {
         status.value = 'error'
+        return
+    }
+    if (!claimSingleUseToken(token)) {
+        // A sibling mount already confirmed this token; converge on /account.
+        status.value = 'ok'
+        await safeReplace(router, '/account')
         return
     }
     try {

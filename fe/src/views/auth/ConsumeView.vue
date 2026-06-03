@@ -1,3 +1,12 @@
+<script lang="ts">
+// MODULE scope (shared across every component instance, unlike `<script
+// setup>` which re-runs per mount): tokens whose consume this page load has
+// already fired. A route double-mount in CI creates a SECOND instance; it
+// reads this set and short-circuits instead of re-POSTing the single-use
+// token. In-memory so it can't be defeated by blocked/partitioned storage.
+const consumingTokens = new Set<string>()
+</script>
+
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -5,22 +14,29 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useConsumeMagicLink } from '@/api/hooks/auth'
 import { safeReplace } from '@/router/safeReplace'
+import { useAuthStore } from '@/stores/auth'
 import { safeSession } from '@/utils/safeStorage'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const mutation = useConsumeMagicLink()
+const auth = useAuthStore()
 const status = ref<'pending' | 'ok' | 'error'>('pending')
 
-// Single-use tokens MUST only be consumed once. A component-scoped ref
-// (`const consumed = ref(false)`) is NOT enough — Vite dev HMR can
-// re-mount the same route in a new component instance, and CI surfaces
-// double-fires that local dev doesn't reproduce. We key the dedup on
-// the token itself in sessionStorage so any subsequent mount with the
-// same token short-circuits before hitting `/auth/consume`. The entry
-// is cleared on `auth.logout()` (it's under `my-fam-tree:`); a fresh
-// sign-in mints a new token, so stale-token leakage isn't a concern.
+// Single-use tokens MUST only be consumed once, but the same token can fire
+// the consume TWICE — Vite dev HMR re-mounts in dev, and in CI the route
+// double-mounts. We guard at three layers, strongest first:
+//
+//   1. `consumingTokens` (module-level, declared above) — set synchronously
+//      before the POST. Survives a re-mount within the same page load and,
+//      unlike `sessionStorage`, can't be silently defeated when storage is
+//      blocked/partitioned (observed at the in-network `:5173` origin in CI,
+//      where the storage-only dedup let BOTH mounts POST → the 2nd got a 401
+//      "already consumed" that clobbered the 1st's success with the error card).
+//   2. `sessionStorage` — persists across a full reload (cleared on logout).
+//   3. The catch below treats an error as benign when the auth store is
+//      already authenticated (a racing fire's 200 hydrated it).
 
 onMounted(async () => {
     const token = String(route.query['token'] ?? '')
@@ -29,35 +45,35 @@ onMounted(async () => {
         return
     }
     const dedupeKey = `my-fam-tree:consumed:${token}`
-    if (safeSession.get(dedupeKey) !== null) {
-        // Already consumed in a previous mount of this same token; the
-        // first mount's success path already redirected. If we got
-        // re-mounted before the navigation settled, finish the redirect
-        // here rather than re-firing the now-invalid POST.
+    if (consumingTokens.has(token) || safeSession.get(dedupeKey) !== null) {
+        // A sibling mount already fired this token's consume; finish the
+        // redirect here rather than re-firing the now-single-use POST.
         status.value = 'ok'
         await safeReplace(router, '/tree')
         return
     }
+    consumingTokens.add(token)
     safeSession.set(dedupeKey, '1')
     try {
         await mutation.mutateAsync(token)
     } catch {
-        // Roll back the dedup marker so a manual retry (refresh) can
-        // re-attempt with the same URL. The token is single-use server-
-        // side anyway; the rollback only matters for "page mounted but
-        // network blew up" which won't actually allow re-consume.
-        safeSession.remove(dedupeKey)
-        status.value = 'error'
-        return
+        // A concurrent mount may have already consumed this token (its 200
+        // hydrated the auth store); our 401 is then benign — we ARE signed
+        // in — so fall through to the success redirect rather than showing
+        // the error card. Only a genuine failure (no prior success) is an
+        // error; roll back the storage marker so a manual refresh can retry.
+        if (auth.status !== 'authenticated') {
+            safeSession.remove(dedupeKey)
+            status.value = 'error'
+            return
+        }
     }
     // Auth is established — flip to success BEFORE attempting the
     // post-consume navigation. If a route guard redirects the push
     // (e.g., the family-active guard bounces the user to
     // `/families/create`), router.replace returns a NavigationFailure
-    // rather than throwing; the previous combined try-catch would
-    // still have surfaced the error UI on any throw inside the push,
-    // even though the user is signed in. Keep the success state and
-    // let the router land where it lands.
+    // rather than throwing; keep the success state and let the router
+    // land where it lands.
     status.value = 'ok'
     await safeReplace(router, '/tree')
 })

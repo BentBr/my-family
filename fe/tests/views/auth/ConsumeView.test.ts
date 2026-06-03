@@ -10,6 +10,7 @@ vi.mock('@/api/hooks/auth', () => ({
 
 import ConsumeView from '@/views/auth/ConsumeView.vue'
 import { i18n } from '@/i18n'
+import { useAuthStore } from '@/stores/auth'
 
 function makeRouter(): Router {
     return createRouter({
@@ -43,15 +44,15 @@ describe('ConsumeView', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         mutateAsync.mockReset()
-        // ConsumeView dedupes by token in sessionStorage; tests share the
-        // global, so wipe between cases or a previous "succeeded for tok"
-        // would short-circuit the next "rejects for tok".
+        // ConsumeView dedupes by token in BOTH sessionStorage and a
+        // module-level Set that tests can't clear — so every case uses a
+        // UNIQUE token to avoid a prior case's marker short-circuiting it.
         sessionStorage.clear()
     })
 
     it('shows pending then ok on success', async () => {
         mutateAsync.mockResolvedValueOnce(undefined)
-        const w = await mountConsume()
+        const w = await mountConsume('token=tok-success')
         await flushPromises()
         expect(w.find('[data-testid="consume-error"]').exists()).toBe(false)
     })
@@ -66,8 +67,34 @@ describe('ConsumeView', () => {
 
     it('shows error when consume rejects', async () => {
         mutateAsync.mockRejectedValueOnce(new Error('expired'))
-        const w = await mountConsume()
+        const w = await mountConsume('token=tok-reject')
         await flushPromises()
         expect(w.find('[data-testid="consume-error"]').exists()).toBe(true)
+    })
+
+    it('a second mount of the same token does not re-POST (module dedup)', async () => {
+        // First mount consumes the single-use token.
+        mutateAsync.mockResolvedValueOnce(undefined)
+        const first = await mountConsume('token=tok-double')
+        await flushPromises()
+        expect(mutateAsync).toHaveBeenCalledTimes(1)
+        // A racing re-mount with the SAME token must short-circuit — not fire
+        // a second POST that would 401 ("already consumed") and clobber the UI.
+        const second = await mountConsume('token=tok-double')
+        await flushPromises()
+        expect(mutateAsync).toHaveBeenCalledTimes(1)
+        expect(second.find('[data-testid="consume-error"]').exists()).toBe(false)
+        void first
+    })
+
+    it('a 401 is benign when a racing fire already authenticated', async () => {
+        // Simulate the racing fire's 200 having hydrated the auth store.
+        useAuthStore().status = 'authenticated'
+        mutateAsync.mockRejectedValueOnce(new Error('already consumed'))
+        const w = await mountConsume('token=tok-benign')
+        await flushPromises()
+        // We're signed in, so the already-consumed 401 must NOT surface the
+        // error card — it falls through to the success redirect.
+        expect(w.find('[data-testid="consume-error"]').exists()).toBe(false)
     })
 })

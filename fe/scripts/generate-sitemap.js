@@ -22,21 +22,22 @@ const outDir = path.join(feRoot, 'dist')
 const baseUrl = process.env.VITE_BASE_URL || 'https://my-fam-tree.eu'
 const today = new Date().toISOString().slice(0, 10)
 
-// Routes that get a sitemap entry. Per-locale URLs use the `?lang=`
-// query convention (no URL prefix today) since vue-i18n + the locale
-// store read it on mount.
-const indexablePaths = ['/']
+// The public site is locale-PREFIXED (`/en`, `/de/imprint`, …), matching
+// the routes vite-ssg prerenders. Only the home page is indexable; its
+// per-locale URLs are real prefixed paths (`/en`, `/de`), not `?lang=`
+// query hints, so crawlers index exactly what's served as static HTML.
 const locales = ['en', 'de']
 
-// Routes that are explicitly NOT indexable — these need to be blocked
-// at the robots.txt layer too.
-const disallowed = ['/imprint', '/data-policy']
+// Locale-agnostic suffixes of the indexable pages (home only). `''` = the
+// locale root (`/en`, `/de`).
+const indexableSuffixes = ['']
 
-function urlFor(path) {
-    // Strip trailing slash on non-root paths so the canonical URL is
-    // stable across `/foo` and `/foo/`.
-    const tail = path === '/' ? '/' : path.replace(/\/$/, '')
-    return `${baseUrl}${tail}`
+// Locale-agnostic suffixes that are explicitly NOT indexable — blocked at
+// the robots.txt layer for EVERY locale prefix.
+const disallowedSuffixes = ['/imprint', '/data-policy']
+
+function localeUrl(locale, suffix) {
+    return `${baseUrl}/${locale}${suffix}`
 }
 
 function buildSitemap(localePaths) {
@@ -74,7 +75,11 @@ ${entries}
 }
 
 function buildRobots() {
-    const disallowLines = disallowed.map((p) => `Disallow: ${p}`).join('\n')
+    // Disallow every locale prefix of each non-indexable suffix
+    // (`/en/imprint`, `/de/imprint`, …).
+    const disallowLines = disallowedSuffixes
+        .flatMap((suffix) => locales.map((l) => `Disallow: /${l}${suffix}`))
+        .join('\n')
     return `User-agent: *
 Allow: /
 ${disallowLines}
@@ -88,13 +93,14 @@ async function main() {
 
     const localeSitemaps = []
     for (const locale of locales) {
-        const localePaths = indexablePaths.map((p) => {
-            const url = locale === 'en' ? urlFor(p) : `${urlFor(p)}?lang=${locale}`
+        const localePaths = indexableSuffixes.map((suffix) => {
+            const url = localeUrl(locale, suffix)
             const alternates = locales.map((l) => ({
                 hreflang: l,
-                href: l === 'en' ? urlFor(p) : `${urlFor(p)}?lang=${l}`,
+                href: localeUrl(l, suffix),
             }))
-            alternates.push({ hreflang: 'x-default', href: urlFor(p) })
+            // x-default → English variant.
+            alternates.push({ hreflang: 'x-default', href: localeUrl('en', suffix) })
             return { url, alternates }
         })
         const xml = buildSitemap(localePaths)

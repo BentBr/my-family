@@ -14,8 +14,18 @@
 import { setActivePinia, createPinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as ApiClientModule from '@/api/client'
+
+// Under vite-ssg there is no router singleton to mock — `main.ts` injects
+// a navigate callback via `setClientNavigator` at boot. The harness mirrors
+// that: `importClient()` wires this spy right after each fresh import.
 const routerReplace = vi.fn()
-vi.mock('@/router', () => ({ router: { replace: routerReplace } }))
+
+async function importClient(): Promise<typeof ApiClientModule> {
+    const mod = await import('@/api/client')
+    mod.setClientNavigator(routerReplace)
+    return mod
+}
 
 function mockStorage(): void {
     const store: Record<string, string> = {}
@@ -60,7 +70,7 @@ describe('@/api/client middlewares', () => {
 
     it('exposes the openapi-fetch verbs', async () => {
         fetchSpy.mockResolvedValueOnce(jsonResponse(200, { ok: true }))
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         expect(typeof client.GET).toBe('function')
         expect(typeof client.POST).toBe('function')
         expect(typeof client.PATCH).toBe('function')
@@ -69,7 +79,7 @@ describe('@/api/client middlewares', () => {
 
     it('familyIdInjector adds X-Family-Id when active family is set', async () => {
         localStorage.setItem('my-fam-tree:activeFamily', 'f-1')
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         fetchSpy.mockResolvedValueOnce(jsonResponse(200, { ok: true }))
         await client.GET('/api/v1/health' as never)
         const req = fetchSpy.mock.calls[0]?.[0] as Request
@@ -77,7 +87,7 @@ describe('@/api/client middlewares', () => {
     })
 
     it('familyIdInjector omits header when no active family', async () => {
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         fetchSpy.mockResolvedValueOnce(jsonResponse(200, { ok: true }))
         await client.GET('/api/v1/health' as never)
         const req = fetchSpy.mock.calls[0]?.[0] as Request
@@ -85,7 +95,7 @@ describe('@/api/client middlewares', () => {
     })
 
     it('errorTranslator converts application/problem+json into ApiClientError throws', async () => {
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         const { ApiClientError } = await import('@/api/errors')
         fetchSpy.mockResolvedValueOnce(
             jsonResponse(
@@ -109,7 +119,7 @@ describe('@/api/client middlewares', () => {
     })
 
     it('warningsBroadcaster surfaces meta.warnings as info toasts on POST', async () => {
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         const { useUiStore } = await import('@/stores/ui')
         fetchSpy.mockResolvedValueOnce(
             jsonResponse(200, {
@@ -139,7 +149,7 @@ describe('@/api/client middlewares', () => {
     })
 
     it('warningsBroadcaster does not fire on GET responses', async () => {
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         const { useUiStore } = await import('@/stores/ui')
         fetchSpy.mockResolvedValueOnce(
             jsonResponse(200, {
@@ -154,7 +164,7 @@ describe('@/api/client middlewares', () => {
     })
 
     it('authRefresh throws ApiClientError on a non-expired 401', async () => {
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         const { ApiClientError } = await import('@/api/errors')
         fetchSpy.mockResolvedValueOnce(
             jsonResponse(
@@ -181,7 +191,7 @@ describe('@/api/client middlewares', () => {
     })
 
     it('refreshes on auth_token_expired then retries the original request', async () => {
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         fetchSpy
             // 1) original GET → 401 expired (plain json so errorTranslator
             //    passes it through to authRefresh)
@@ -203,7 +213,7 @@ describe('@/api/client middlewares', () => {
     })
 
     it('ends the session when the retried request is still 401', async () => {
-        const { client } = await import('@/api/client')
+        const { client } = await importClient()
         const { ApiClientError } = await import('@/api/errors')
         fetchSpy
             .mockResolvedValueOnce(

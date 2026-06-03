@@ -1,0 +1,121 @@
+{
+    "public": {
+        "home": {
+            "hero": {
+                "eyebrow": "Stammbaum mit Privatsphäre zuerst",
+                "title": "Erfasse Deine Familie. Teile was zählt.",
+                "lede": "My Family Tree organisiert die Menschen in Deiner Familie, die Beziehungen zwischen ihnen und die Daten, die es wert sind, erinnert zu werden — ohne irgendetwas davon an Dritte weiterzugeben.",
+                "ctaPrimary": "Loslegen",
+                "ctaSecondary": "Anmelden",
+                "imageAlt": "Eine Familie Faultiere, die zusammen an einem Ast hängt"
+            },
+            "features": {
+                "relations": {
+                    "title": "Ein Baum, jede Beziehung.",
+                    "body": "Eltern, Kinder, Partner — die Struktur folgt echten Familien, nicht einer geraden Linie."
+                },
+                "reminders": {
+                    "title": "Freundliche Erinnerungen.",
+                    "body": "Eine kurze Digest-E-Mail kommt ein paar Tage vor jedem Geburtstag oder Jahrestag an. Standardmäßig aus; an, wenn Du es willst."
+                },
+                "privacy": {
+                    "title": "Nur Dein.",
+                    "body": "Keine Analyse-Tools, kein Tracking, keine Drittanbieter-Skripte. Die einzigen Cookies sind die, die Dich angemeldet halten."
+                }
+            },
+            "screenshot": {
+                "alt": "Ein in My Family Tree dargestellter Stammbaum — Eltern oben, Kinder unten, Partner durch einen weichen Herz-Connector verbunden.",
+                "caption": "Ein echter Stammbaum aus echten Daten. Klicke eine Person für ihr volles Profil; bewege die Maus über sie, um die Linie zu verfolgen."
+            },
+            "cta": {
+                "title": "Bereit, Deine Familie zu erfassen?",
+                "button": "Konto erstellen"
+            }
+        },
+        "footer": {
+            "tagline": "© 2026 Slothlike. Gebaut mit Rust und Vue.js.",
+            "taglinePrefix": "© 2026 Slothlike. Gebaut mit",
+            "taglineMid": "und",
+            "links": {
+                "imprint": "Impressum",
+                "dataPolicy": "Datenschutzerklärung",
+                "language": "Sprache",
+                "sourceLabel": "Open Source",
+                "sourceAria": "Open Source auf GitHub — mit Herzblut von Slothlike"
+            }
+        },
+        "imprint": {
+            "title": "Impressum",
+            "sections": {
+                "contact": {
+                    "heading": "Kontakt",
+                    "email": "E-Mail",
+                    "phone": "Telefon"
+                },
+                "responsible": {
+                    "heading": "Verantwortlich für den Inhalt",
+                    "name": "Bent Brüggemann"
+                },
+                "disclaimer": {
+                    "heading": "Haftungsausschluss",
+                    "body": "Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die Inhalte externer Links."
+                },
+                "linkLiability": {
+                    "heading": "Haftung für Links",
+                    "body": "Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben."
+                }
+            },
+            "footerNote": "© 2026 Slothlike. Alle Rechte vorbehalten. Gebaut mit Rust und Vue.js."
+        },
+        "dataPolicy": {
+            "title": "Datenschutzerklärung",
+            "sections": {
+                "introduction": {
+                    "heading": "Einleitung",
+                    "body": "Deine Privatsphäre ist uns wichtig. My Family Tree ist mit Fokus auf Datenschutz entwickelt — wir erfassen nur das, was Du der App selbst gibst, plus das Minimum, das nötig ist, um Dich angemeldet zu halten. Keine Analyse-Tools, kein Tracking, keine Marketing-Cookies."
+                },
+                "dataCollection": {
+                    "heading": "Datenerfassung",
+                    "publicBody": "Wenn Du unsere öffentlichen Seiten besuchst (Startseite, Impressum, diese Datenschutzerklärung), ohne Dich anzumelden, erfassen wir keine personenbezogenen Daten. Es werden keine Cookies gesetzt, und unsere Anwendung protokolliert nichts über das hinaus, was die Hosting-Infrastruktur aus Sicherheitsgründen führt (IP und Zeitstempel, 14 Tage Aufbewahrung, danach gelöscht).",
+                    "appBody": "Wenn Du ein Konto erstellst, speichern wir die Daten, die Du der App gibst: Deine E-Mail-Adresse, die Personen, die Du Deinem Baum hinzufügst (Namen, Daten, Orte, Beziehungen, hochgeladene Fotos, Kontaktdaten) und Deine Erinnerungs-Einstellungen. Diese Daten liegen auf unserer Infrastruktur innerhalb der EU. Wir geben sie nicht an Dritte weiter, verkaufen sie nicht und verwenden sie nicht, um etwas zu trainieren. Du kannst Dein Konto jederzeit löschen — Deine Daten werden dabei mitgelöscht."
+                },
+                "cookies": {
+                    "heading": "Cookies",
+                    "intro": "My Family Tree verwendet zwei zwingend erforderliche Cookies, beide für die Authentifizierung, beide HttpOnly (Dein Browser stellt sie nie JavaScript zur Verfügung), beide in Produktion mit dem Secure-Flag. Andere Cookies setzen wir nicht — kein Tracking, kein Marketing, keine Präferenz-Cookies. Theme-Wahl und Sprache liegen im localStorage Deines Browsers und erreichen unseren Server nie.",
+                    "access": "access — ein kurzlebiges JSON Web Token (etwa 15 Minuten). Wird bei jeder API-Anfrage gesendet, um zu beweisen, wer Du bist.",
+                    "refresh": "refresh — ein länger lebendes opakes Token (etwa 30 Tage). Eingeschränkt auf /auth/refresh. Sobald das Access-Token abläuft, tauscht der Browser das Refresh-Token im Hintergrund gegen ein frisches, damit Du nicht mitten in einer Aktion abgemeldet wirst.",
+                    "rationale": "Das kurzlebige Access-Token begrenzt den Schaden, falls ein Token jemals austritt; das Refresh-Token reist nur auf dem Erneuerungs-Endpunkt, nie bei einer gewöhnlichen API-Anfrage — die Angriffsfläche bleibt schmal."
+                },
+                "analytics": {
+                    "heading": "Analyse-Tools",
+                    "body": "Wir verwenden keine Analyse-Tools, Tracking-Tools oder Drittanbieter-Dienste auf dieser Seite. Kein Google Analytics, kein Plausible, kein Matomo, kein Sentry. Kein eingebettetes YouTube, Vimeo, keine Social-Widgets, keine extern gehosteten Schriftarten. Jede Datei der Seite kommt von unserer eigenen Infrastruktur."
+                },
+                "rights": {
+                    "heading": "Deine Rechte",
+                    "lead": "Du hast folgende Rechte bezüglich Deiner personenbezogenen Daten:",
+                    "items": [
+                        "Recht auf Auskunft über gespeicherte Daten",
+                        "Recht auf Berichtigung falscher Daten",
+                        "Recht auf Löschung von Daten",
+                        "Recht auf Einschränkung der Verarbeitung",
+                        "Recht auf Datenübertragbarkeit"
+                    ],
+                    "trail": "Sende solche Anfragen an {email}. Du hast außerdem das Recht, Beschwerde bei der für Dich zuständigen Datenschutzaufsichtsbehörde einzulegen."
+                },
+                "security": {
+                    "heading": "Datensicherheit",
+                    "body": "Wir verwenden technische und organisatorische Sicherheitsmaßnahmen, um Deine Daten gegen zufällige oder vorsätzliche Manipulationen, Verlust, Zerstörung oder den Zugriff unberechtigter Personen zu schützen. Im Klartext: TLS-verschlüsselter Transport, verschlüsselte Backups, rollenbasierter Zugriff auf der Server-Seite und die oben beschriebene Cookie-Disziplin. Vorfälle melden wir gemäß Art. 33 DSGVO innerhalb von 72 Stunden nach Entdeckung."
+                },
+                "changes": {
+                    "heading": "Änderungen dieser Datenschutzerklärung",
+                    "body": "Wir behalten uns vor, diese Datenschutzerklärung zu aktualisieren, um Änderungen in unseren Datenverarbeitungspraktiken oder rechtlichen Anforderungen widerzuspiegeln. Die neue Fassung ersetzt dann diese; das Datum unten zeigt, wann zuletzt geändert wurde."
+                },
+                "contact": {
+                    "heading": "Kontakt",
+                    "body": "Wenn Du Fragen zu dieser Datenschutzerklärung oder zum Datenschutz hast, schreibe an {email}, oder nutze die postalische Anschrift auf der Impressum-Seite."
+                }
+            },
+            "lastUpdated": "Zuletzt aktualisiert: 30.05.2026."
+        }
+    }
+}

@@ -16,15 +16,18 @@ import type { SupportedLocale } from '@/stores/locale'
 // the meaningful state is the route record, not what the page renders.
 const Blank = defineComponent({ setup: () => () => h('div') })
 
+// Locale-prefixed like the real route table — `usePageMeta` derives the
+// canonical + hreflang URLs from the `/en`|`/de` prefix of the live path.
 function makeRouter(): Router {
+    const LANG = ':lang(en|de)'
     return createRouter({
         history: createMemoryHistory(),
         routes: [
-            { path: '/', name: 'home', component: Blank },
-            { path: '/imprint', name: 'imprint', component: Blank },
-            { path: '/data-policy', name: 'data-policy', component: Blank },
-            { path: '/tree', name: 'tree', component: Blank },
-            { path: '/nowhere', name: 'nowhere', component: Blank },
+            { path: `/${LANG}`, name: 'home', component: Blank },
+            { path: `/${LANG}/imprint`, name: 'imprint', component: Blank },
+            { path: `/${LANG}/data-policy`, name: 'data-policy', component: Blank },
+            { path: `/${LANG}/tree`, name: 'tree', component: Blank },
+            { path: `/${LANG}/nowhere`, name: 'nowhere', component: Blank },
         ],
     })
 }
@@ -73,7 +76,7 @@ describe('usePageMeta via useRouteMeta', () => {
     })
 
     it('emits the full SEO + OG/Twitter block for the indexable home route', async () => {
-        const { payload } = await renderHeadAt('/')
+        const { payload } = await renderHeadAt('/en')
         const { headTags } = payload
 
         // Title carries the page segment + brand suffix.
@@ -99,16 +102,18 @@ describe('usePageMeta via useRouteMeta', () => {
         expect(headTags).toContain('name="twitter:card"')
         expect(headTags).toContain('content="summary_large_image"')
 
-        // Canonical + hreflang alternates (home is the only hreflang page).
+        // Canonical + hreflang alternates point at the locale-PREFIXED
+        // variants vite-ssg prerenders (home is the only hreflang page).
         expect(headTags).toContain('rel="canonical"')
-        expect(headTags).toContain('href="https://my-fam-tree.eu/"')
+        expect(headTags).toContain('href="https://my-fam-tree.eu/en"')
         expect(headTags).toContain('hreflang="de"')
+        expect(headTags).toContain('href="https://my-fam-tree.eu/de"')
         expect(headTags).toContain('hreflang="x-default"')
-        expect(headTags).toContain('?lang=de')
+        expect(headTags).not.toContain('?lang=')
     })
 
     it('emits ONLY a minimal title + robots noindex for the legal pages', async () => {
-        for (const path of ['/imprint', '/data-policy']) {
+        for (const path of ['/en/imprint', '/en/data-policy']) {
             const { payload } = await renderHeadAt(path)
             const { headTags } = payload
             expect(headTags).toContain('content="noindex, nofollow"')
@@ -123,24 +128,26 @@ describe('usePageMeta via useRouteMeta', () => {
     })
 
     it('gives an authenticated route a translated title + description + OG (no hreflang)', async () => {
-        const { payload } = await renderHeadAt('/tree')
+        const { payload } = await renderHeadAt('/en/tree')
         const { headTags } = payload
         expect(headTags).toContain('<title>Family tree · My Family Tree</title>')
         expect(headTags).toContain('name="description"')
         expect(headTags).toContain('property="og:title"')
+        // Self-canonical to the live, locale-prefixed route path.
         expect(headTags).toContain('rel="canonical"')
+        expect(headTags).toContain('href="https://my-fam-tree.eu/en/tree"')
         // Authenticated pages are not crawled — no hreflang alternates.
         expect(headTags).not.toContain('hreflang')
     })
 
     it('falls back to the default descriptor for an unmapped route', async () => {
-        const { payload } = await renderHeadAt('/nowhere')
+        const { payload } = await renderHeadAt('/en/nowhere')
         expect(payload.headTags).toContain('<title>My Family Tree · My Family Tree</title>')
         expect(payload.headTags).toContain('name="description"')
     })
 
     it('swaps the resolved tags when the locale switches to German', async () => {
-        const { payload } = await renderHeadAt('/', 'de')
+        const { payload } = await renderHeadAt('/de', 'de')
         const { headTags } = payload
         // German title + description from the de catalogue.
         expect(headTags).toContain('<title>Erfasse Deine Familie. Teile was zählt. · My Family Tree</title>')

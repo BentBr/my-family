@@ -20,8 +20,9 @@ import type { PageMetaDescriptor } from './usePageMeta'
  */
 const ROUTE_META: Record<string, PageMetaDescriptor> = {
     // ---- Public, indexable ----
-    // No `canonicalPath`: `usePageMeta` derives the canonical from the live
-    // route path and emits `?lang=de` hreflang alternates for it.
+    // No `canonicalPath`: the home page is locale-prefixed (`/en`, `/de`),
+    // so `usePageMeta` derives the canonical + hreflang from the live route
+    // path — each variant self-canonicalises and cross-links its alternate.
     home: {
         titleKey: 'public.home.hero.title',
         descriptionKey: 'public.home.hero.lede',
@@ -73,9 +74,9 @@ export function useRouteMeta(): void {
     const descriptor = computed<PageMetaDescriptor>(() => {
         const name = typeof route.name === 'string' ? route.name : ''
         const base = ROUTE_META[name] ?? DEFAULT_META
-        // hreflang pages (the public home) let `usePageMeta` derive their
-        // canonical + `?lang=` alternates from the live route path — don't
-        // pin one. Every other page self-canonicalises to its
+        // hreflang pages (the locale-prefixed public home) let `usePageMeta`
+        // derive their canonical + alternates from the live `/en`|`/de`
+        // path — don't pin one. Every other page self-canonicalises to its
         // own route path unless it already pins one explicitly.
         if (base.hreflang === true || base.canonicalPath !== undefined) return base
         return { ...base, canonicalPath: route.path }

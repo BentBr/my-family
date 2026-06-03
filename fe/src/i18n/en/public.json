@@ -1,0 +1,121 @@
+{
+    "public": {
+        "home": {
+            "hero": {
+                "eyebrow": "Privacy-first family tree",
+                "title": "Map your family. Share what matters.",
+                "lede": "My Family Tree organises the people in your family, the relationships between them, and the dates worth remembering — without giving any of it to a third party.",
+                "ctaPrimary": "Get started",
+                "ctaSecondary": "Sign in",
+                "imageAlt": "A family of sloths hanging together from a branch"
+            },
+            "features": {
+                "relations": {
+                    "title": "One tree, every relation.",
+                    "body": "Parents, children, partners — the structure follows real families, not a single straight line."
+                },
+                "reminders": {
+                    "title": "Gentle reminders.",
+                    "body": "A short digest email lands a few days before each birthday or anniversary. Off by default; on when you want it."
+                },
+                "privacy": {
+                    "title": "Yours alone.",
+                    "body": "No analytics, no tracking, no third-party scripts. The only cookies are the ones that keep you signed in."
+                }
+            },
+            "screenshot": {
+                "alt": "A family tree rendered in My Family Tree — parents at the top, children below, partner pairs joined with a soft heart connector.",
+                "caption": "A real family tree, rendered from real records. Click any person to open their full profile; hover to trace inheritance."
+            },
+            "cta": {
+                "title": "Ready to map your family?",
+                "button": "Create an account"
+            }
+        },
+        "footer": {
+            "tagline": "© 2026 Slothlike. Built with Rust and Vue.js.",
+            "taglinePrefix": "© 2026 Slothlike. Built with",
+            "taglineMid": "and",
+            "links": {
+                "imprint": "Imprint",
+                "dataPolicy": "Privacy policy",
+                "language": "Language",
+                "sourceLabel": "Open source",
+                "sourceAria": "Open source on GitHub — heart-coded by Slothlike"
+            }
+        },
+        "imprint": {
+            "title": "Imprint",
+            "sections": {
+                "contact": {
+                    "heading": "Contact",
+                    "email": "Email",
+                    "phone": "Phone"
+                },
+                "responsible": {
+                    "heading": "Responsible for content",
+                    "name": "Bent Brüggemann"
+                },
+                "disclaimer": {
+                    "heading": "Disclaimer",
+                    "body": "Despite careful content control, we assume no liability for the content of external links."
+                },
+                "linkLiability": {
+                    "heading": "Liability for links",
+                    "body": "The site contains links to third-party websites over which we exercise no control and therefore accept no responsibility for external materials."
+                }
+            },
+            "footerNote": "© 2026 Slothlike. All rights reserved. Built with Rust and Vue.js."
+        },
+        "dataPolicy": {
+            "title": "Privacy Policy",
+            "sections": {
+                "introduction": {
+                    "heading": "Introduction",
+                    "body": "Your privacy is important to us. My Family Tree is built privacy-first — we collect only what you ask the app to hold for you, and the minimum required to keep you signed in. No analytics, no trackers, no marketing cookies."
+                },
+                "dataCollection": {
+                    "heading": "Data Collection",
+                    "publicBody": "When you browse our public pages (home, imprint, this policy) without signing in, we do not collect personal data. No cookies are set, no information is logged in our application beyond what the hosting infrastructure keeps for security (IP plus timestamp, retained 14 days, then purged).",
+                    "appBody": "When you create an account, we store the data you give the app: your email address, the people you add to your tree (names, dates, places, relationships, photos you upload, contact details), and your reminder preferences. This data lives on our infrastructure inside the EU. We do not share it with third parties, we do not sell it, and we do not use it to train anything. You can delete your account at any time, which removes your data with it."
+                },
+                "cookies": {
+                    "heading": "Cookies",
+                    "intro": "My Family Tree uses two strictly-necessary cookies, both for authentication, both HttpOnly (your browser never exposes them to JavaScript), both flagged Secure in production. We use no other cookies — no tracking, no marketing, no preference cookies. Your theme and language choices stay in your browser's localStorage and never reach our server.",
+                    "access": "access — a short-lived JSON Web Token (about 15 minutes). Sent on every API request to prove who you are.",
+                    "refresh": "refresh — a longer-lived opaque token (about 30 days). Scoped to /auth/refresh only. When the access token expires, the browser silently swaps the refresh token for a fresh one so you are not signed out mid-action.",
+                    "rationale": "The short-lived access token limits the damage if a token ever leaks; the refresh token only travels on the renewal request, never on a normal API call, so its attack surface is narrow."
+                },
+                "analytics": {
+                    "heading": "Analytics",
+                    "body": "We do not use any analytics, tracking tools or third-party services on this site. No Google Analytics, no Plausible, no Matomo, no Sentry. No embedded YouTube, Vimeo, social widgets or externally-hosted fonts. Every asset the site loads is served from our own infrastructure."
+                },
+                "rights": {
+                    "heading": "Your Rights",
+                    "lead": "You have the following rights regarding your personal data:",
+                    "items": [
+                        "Right to information about stored data",
+                        "Right to correction of incorrect data",
+                        "Right to deletion of data",
+                        "Right to restriction of processing",
+                        "Right to data portability"
+                    ],
+                    "trail": "Send any such request to {email}. You also have the right to complain to your local data-protection authority."
+                },
+                "security": {
+                    "heading": "Data Security",
+                    "body": "We use technical and organizational security measures to protect your data against accidental or intentional manipulation, loss, destruction, or access by unauthorized persons. In practical terms: TLS-encrypted transport, encrypted backups, role-based server-side access, and the cookie discipline described above. We report breaches within 72 hours of discovery as required by Art. 33 GDPR."
+                },
+                "changes": {
+                    "heading": "Changes to this Privacy Policy",
+                    "body": "We reserve the right to update this privacy policy to reflect changes in our data processing practices or legal requirements. The new version replaces this one in place; the change date below shows when it last moved."
+                },
+                "contact": {
+                    "heading": "Contact",
+                    "body": "If you have any questions about this privacy policy or data protection, please write to {email}, or use the postal address given in the imprint."
+                }
+            },
+            "lastUpdated": "Last updated: 2026-05-30."
+        }
+    }
+}

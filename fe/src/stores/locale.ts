@@ -17,10 +17,18 @@ interface I18nLike {
     }
 }
 
-function detectInitialLocale(): SupportedLocale {
+/**
+ * Resolve the visitor's preferred locale: an explicit prior choice
+ * (localStorage) wins, then the browser's `navigator.language`, else
+ * English. Exported so the router's bare-path redirects (`/` → `/en`)
+ * can pick the same locale the store would. SSR-safe: `safeLocal`
+ * swallows storage errors and `navigator` is guarded, so a prerender
+ * falls back to English.
+ */
+export function detectInitialLocale(): SupportedLocale {
     const stored = safeLocal.get(STORAGE_KEY)
     if (stored === 'en' || stored === 'de') return stored
-    const nav = navigator.language.toLowerCase()
+    const nav = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : ''
     if (nav.startsWith('de')) return 'de'
     return 'en'
 }

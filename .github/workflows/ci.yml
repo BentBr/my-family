@@ -6,8 +6,12 @@ on:
         branches: [main]
     # Dispatched by release-please.yml onto the release PR branch: the PR is
     # pushed via GITHUB_TOKEN, which can't trigger `pull_request`, but API
-    # `workflow_dispatch` is the documented exception to that rule. Check runs
-    # then attach to the PR head SHA natively (incl. the required `ci-gate`).
+    # `workflow_dispatch` is the documented exception to that rule. Caveat:
+    # GitHub only associates check suites from `pull_request`/`push` events
+    # with the PR merge box, so this run's check runs attach to the commit but
+    # are invisible to required-checks evaluation — the gate therefore posts
+    # an explicit `ci-gate` commit status on github.sha (see the ci-gate job),
+    # which the merge box does honor.
     workflow_dispatch:
 
 env:
@@ -19,8 +23,11 @@ env:
 # coverage badge JSON to the gh-pages branch. All other jobs are
 # read-only; granting at workflow level is simpler than per-job and the
 # push is gated by `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`.
+# `statuses: write` lets the changes + ci-gate jobs post the `ci-gate` commit
+# status on workflow_dispatch runs (release PR gating).
 permissions:
     contents: write
+    statuses: write
 
 jobs:
     # ============================================================================
@@ -70,6 +77,18 @@ jobs:
               run: |
                   echo "backend=true" >> "$GITHUB_OUTPUT"
                   echo "frontend=true" >> "$GITHUB_OUTPUT"
+            # Dispatched runs (release PR gating) don't surface in the PR
+            # merge box, so flag the gate as pending right away; the ci-gate
+            # job resolves it to success/failure at the end.
+            - name: Set ci-gate status to pending
+              if: ${{ github.event_name == 'workflow_dispatch' }}
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+                      -f state=pending -f context=ci-gate \
+                      -f description="CI is running" \
+                      -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
     # ============================================================================
     # Commit Lint - Validates Conventional Commits on every PR
@@ -1017,6 +1036,7 @@ jobs:
             # backend, or frontend paths matched (see the path-filter above —
             # infra changes flip BOTH groups).
             - name: Enforce all upstream jobs
+              id: enforce
               env:
                   BRANCH_NAME_RESULT: ${{ needs.branch-name.result }}
                   COMMIT_LINT_RESULT: ${{ needs.commit-lint.result }}
@@ -1085,3 +1105,27 @@ jobs:
                       exit 1
                   fi
                   echo "CI gate passed"
+
+            # Dispatched runs (release PR gating): this run's check runs are
+            # NOT associated with the PR merge box (GitHub only links suites
+            # from `pull_request`/`push` events), so satisfy the required
+            # `ci-gate` check explicitly via a commit status. `github.sha` IS
+            # the dispatched PR head — no stale-SHA race.
+            - name: Report ci-gate commit status (workflow_dispatch)
+              if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  ENFORCE_OUTCOME: ${{ steps.enforce.outcome }}
+              run: |
+                  if [[ "$ENFORCE_OUTCOME" == "success" ]]; then
+                      state=success
+                      description="All CI checks passed"
+                  else
+                      state=failure
+                      description="CI checks failed"
+                  fi
+                  gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+                      -f state="$state" -f context=ci-gate \
+                      -f description="$description" \
+                      -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                  echo "set ci-gate=$state on $GITHUB_SHA"

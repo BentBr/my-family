@@ -29,9 +29,11 @@ jobs:
             # `pull_request` CI — so the release PR never gets checks on its
             # own. API-triggered `workflow_dispatch` is the documented
             # exception to that rule: dispatch ci.yml onto the PR branch so
-            # its check runs (including the required `ci-gate`) attach to the
-            # PR head SHA natively — live jobs on the PR, no status plumbing,
-            # and no stale-SHA race against the force-push.
+            # CI runs against the actual PR contents. Note: dispatch check
+            # runs do NOT surface in the PR merge box (GitHub only associates
+            # `pull_request`/`push` suites with PRs), so ci.yml's gate posts
+            # the required `ci-gate` as a commit status on the dispatched SHA
+            # (= the PR head, so no stale-SHA race against the force-push).
             -   name: Dispatch CI for the release PR
                 if: ${{ steps.release.outputs.prs_created == 'true' && steps.release.outputs.release_created != 'true' }}
                 env:

@@ -92,3 +92,22 @@ test('account-menu Register flow signs a new user up; Login afterwards reauthent
     await expect(page.getByTestId('user-menu-account')).toBeVisible()
     await expect(page.getByTestId('user-menu').getAttribute('aria-label')).resolves.toBe(email)
 })
+
+test('Login menu item on /auth/sign-in resets a sent confirmation back to the form', async ({ page }) => {
+    // Regression: while parked on the "check your inbox" confirmation, the
+    // dropdown's Login/Register used to push the IDENTICAL route — a
+    // duplicate-navigation no-op, so clicking did nothing. The items now
+    // push with `force: true` and LoginView's route-update hook resets to a
+    // fresh form.
+    const login = new LoginPage(page)
+    await login.goto()
+    await login.signIn(`menu-reset-${Date.now()}@example.com`)
+    await expect(login.sent).toBeVisible({ timeout: 10_000 })
+
+    await page.getByTestId('user-menu').click()
+    await page.getByTestId('account-login').click()
+
+    // Fresh form is back; the confirmation is gone.
+    await expect(login.email).toBeVisible()
+    await expect(login.sent).toHaveCount(0)
+})

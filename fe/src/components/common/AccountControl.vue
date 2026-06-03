@@ -91,8 +91,14 @@ async function signOut(): Promise<void> {
 // on both `<v-list-item>`s collides on Vuetify's list-nav internal id
 // tracking ("Multiple nodes with the same ID /auth/sign-in"), so we
 // drive the navigation via `@click` and `router.push` instead.
+//
+// `force: true` matters when the user is ALREADY on /auth/sign-in (e.g.
+// sitting on the "check your inbox" confirmation): a plain push to the
+// identical location is a duplicate-navigation no-op — the click would
+// do nothing at all. Forcing re-runs the navigation, which LoginView's
+// route-update hook treats as "start over" and surfaces a fresh form.
 function goToSignIn(): void {
-    void router.push('/auth/sign-in')
+    void router.push({ path: '/auth/sign-in', force: true })
 }
 </script>
 

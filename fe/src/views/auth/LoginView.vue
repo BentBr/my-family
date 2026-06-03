@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { onBeforeRouteUpdate } from 'vue-router'
 
 import { useRequestMagicLink } from '@/api/hooks/auth'
 
@@ -9,6 +10,16 @@ const email = ref('')
 const sent = ref(false)
 const mutation = useRequestMagicLink()
 const errorMsg = ref<string | null>(null)
+
+// Re-navigating to this route while it's already mounted (the AppBar's
+// Login/Register items push `/auth/sign-in` with `force: true`) means the
+// user wants to START OVER — e.g. they're parked on the "check your inbox"
+// confirmation and want to request a link for a different address. Reset to
+// the fresh form; the typed email is kept as a convenience.
+onBeforeRouteUpdate(() => {
+    sent.value = false
+    errorMsg.value = null
+})
 
 async function submit(): Promise<void> {
     errorMsg.value = null

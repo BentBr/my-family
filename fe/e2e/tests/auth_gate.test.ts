@@ -15,11 +15,12 @@ test.describe('FE auth gate', () => {
 
     test('anonymous visit to / lands on the public home page', async ({ page }) => {
         // `/` is the public marketing page now — reachable without a
-        // session. The guard exempts `meta.public` routes from the
-        // sign-in bounce; the home view should render with its Login /
-        // Register affordances in the AppBar.
+        // session. The bare root normalizes to the visitor's locale
+        // (`/en` for the headless browser); the guard exempts
+        // `meta.public` routes from the sign-in bounce, and the home
+        // view renders with its Login / Register affordances.
         await page.goto('/')
-        await expect(page).toHaveURL(/\/$/)
+        await expect(page).toHaveURL(/\/(en|de)$/)
         await expect(page.getByTestId('public-home')).toBeVisible()
         await expect(page.getByTestId('user-menu')).toBeVisible()
     })

@@ -21,8 +21,14 @@ test('selecting a language from the chrome menu survives a page reload', async (
     // "Imprint". Look for the footer nav by aria-label.
     await expect(page.getByRole('link', { name: 'Impressum' })).toBeVisible()
 
-    // Reload — the persisted locale comes back from localStorage at
-    // bootstrap, so the German label stays.
+    // The pick also swaps the URL prefix in place (`/en` → `/de`) — the
+    // URL is the locale's source of truth now. Wait for the swap to land
+    // BEFORE reloading: a reload that races the in-flight replace would
+    // reload `/en` and legitimately come back English.
+    await expect(page).toHaveURL(/\/de$/)
+
+    // Reload — the locale rides the URL prefix (and localStorage backs
+    // bare-path visits), so the German label stays.
     await page.reload()
     await expect(page.getByRole('link', { name: 'Impressum' })).toBeVisible()
 })

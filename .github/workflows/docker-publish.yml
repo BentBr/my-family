@@ -63,7 +63,7 @@ jobs:
                     password: ${{ secrets.GITHUB_TOKEN }}
             -   name: Extract metadata
                 id: meta
-                uses: docker/metadata-action@v5
+                uses: docker/metadata-action@v6
                 with:
                     images: ghcr.io/${{ steps.repo.outputs.owner_lc }}/my-fam-tree-${{ matrix.image }}
                     # The version is passed explicitly (release-please emits a clean

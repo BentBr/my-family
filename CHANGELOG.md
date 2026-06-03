@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.17](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.16...core-v0.1.17) (2026-06-03)
+
+
+### Features
+
+* **auth:** send welcome/onboarding email to brand-new users ([4221175](https://github.com/BentBr/my-fam-tree/commit/422117527afcea5d2ec38a1d129c2465cc74c880))
+* **email:** HTML + plain-text multipart transactional emails ([b1fd388](https://github.com/BentBr/my-fam-tree/commit/b1fd388cbff3b0089d575fbb95305c994647b301))
+* **fe:** auto-reload a stale tab when a lazy route chunk 404s after deploy ([9bc7473](https://github.com/BentBr/my-fam-tree/commit/9bc7473c0782cff424a2e8b522e41aa13016342f))
+
+
+### Bug Fixes
+
+* **ci:** dispatch CI onto the release PR branch via workflow_dispatch ([5332721](https://github.com/BentBr/my-fam-tree/commit/5332721e44dc6fba4f28016a428792759136c637))
+* **ci:** optimize deps in dev/test profile to kill the e2e consume flake ([40bedfe](https://github.com/BentBr/my-fam-tree/commit/40bedfe90db9c45b72968b3437ff489b9f92ecf1))
+* **ci:** satisfy nightly clippy/fmt/strict-TS + dedup e2e via shared helpers ([a4bf949](https://github.com/BentBr/my-fam-tree/commit/a4bf949fa684bd641d0114c6e43e86c57db21ae0))
+* **ci:** stop the e2e worker readiness probe from time-travelling the suite ([1c70556](https://github.com/BentBr/my-fam-tree/commit/1c705566c8b95edbd52e3e78848da3ab147d552e))
+* **fe:** add missing audit-log action translations (set_photo, clear_photo, claim) ([4f7f3fd](https://github.com/BentBr/my-fam-tree/commit/4f7f3fdb0d6e720b8c794f3c589725b8fae3aefa))
+* **fe:** chunk-reload only suppresses the error when it actually reloads + broader matcher ([37716e5](https://github.com/BentBr/my-fam-tree/commit/37716e59fa7b6c437d7a6ece5bc5c1f30a9b6876))
+* **fe:** make magic-link consume idempotent against double-fire (CI flake) ([21afc36](https://github.com/BentBr/my-fam-tree/commit/21afc36fc9a784e6f6096db89186d2c94c04b22e))
+* **fe:** shared module-level dedup for ALL single-use-token consume views ([642d9af](https://github.com/BentBr/my-fam-tree/commit/642d9af62bdbae89e68ebd7591569714828afb48))
+* **security:** stop one-time tokens leaking via Referer into logs ([07d082d](https://github.com/BentBr/my-fam-tree/commit/07d082d7944788429459114172a4822a5e6f0219))
+* **security:** validate actor before burning single-use tokens; harden owner-transfer + refresh ([77d9707](https://github.com/BentBr/my-fam-tree/commit/77d9707fd15dbab1d57493729cf5c85a07e12a0b))
+* **seed:** reconcile email squatters so re-seed survives a dirty users table ([810b641](https://github.com/BentBr/my-fam-tree/commit/810b64163e921514a8ee429890cbac3fcf322e27))
+
 ## [0.1.16](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.15...core-v0.1.16) (2026-06-01)
 
 

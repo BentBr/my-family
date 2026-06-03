@@ -45,6 +45,10 @@ proposing fixes), `superpowers:test-driven-development` (new feature/behavior), 
 - **API types are generated.** After a backend change, run `rdt openapi`; never
   hand-edit `fe/openapi.json` or `fe/src/api/schema.d.ts`. (Full pipeline in
   `project-concepts`.)
+- **Never copy code — abstract it.** Lift repeated logic to a composable / util /
+  shared component (FE) or a `page-objects/` helper (e2e: `signIn`, `seedPerson`,
+  `inviteAndAccept`, …) rather than pasting it. Parameterise a near-duplicate; don't
+  fork it. (See `project-concepts` → Engineering principles.)
 - Use `data-testid` for anything E2E needs to select.
 
 ## Working loop

@@ -16,6 +16,20 @@ This skill is the orientation map. For *how to build/test* a stack, load
 `rust-foundations` (backend) or `frontend-workflow` (FE). For a specific crate, load
 its `crate-<name>` skill.
 
+## Engineering principles (apply everywhere)
+
+**Never copy code — abstract it.** If a block of logic appears (or is about to
+appear) a second time, extract it to a shared place instead of pasting it: a
+domain helper / repo method on the backend, a composable / util / API hook on the
+FE, a page-object helper in `fe/e2e/page-objects/` for tests. Reach for the
+existing abstraction first — repos reuse domain `Row`/`Draft` types + `Role`/
+`Capability` + the cycle/canonicalise helpers; the FE calls API hooks (not the raw
+client) and renders shared components; e2e drives `signIn`/`seedPerson`/
+`inviteAndAccept` etc. Duplicated POST shapes, sign-in flows, formatters, and
+loading/error scaffolds are exactly the churn we keep deleting. A near-duplicate
+that needs a small tweak is a signal to parameterise the shared helper, not to
+fork it. When you catch yourself about to paste, stop and lift it.
+
 ## Service topology
 
 The whole stack runs in Docker Compose (`compose.yaml`). Locally, **dinghy** routes
@@ -125,7 +139,7 @@ updated `fe/openapi.json`** → consume the new types from a FE hook. Never hand
 crates/domain         pure types, newtype IDs, repo traits, roles/capabilities (no I/O)
 crates/persistence    SQLx Postgres impls of the repo traits (.sqlx offline cache)
 crates/cache          Redis pool, rate limiter, reminder job queue
-crates/email          SMTP + Fake senders, Askama text templates (en/de)
+crates/email          SMTP + Fake senders, Askama text + HTML templates (en/de), inline logo
 crates/api            Actix HTTP server: routes, AppState, middleware, error model, OpenAPI
 crates/worker leader-locked scheduler + dispatcher pool for digest emails
 crates/migrator       sqlx migrate runner binary

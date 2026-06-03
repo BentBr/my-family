@@ -44,6 +44,10 @@ For process: `superpowers:systematic-debugging` (any bug/test failure, before fi
 - **Reuse existing domain structures** (newtype IDs, `Role`/`Capability`, repo
   `Row`/`Draft` types, `build_upcoming`, the cycle/canonicalize helpers) — don't invent
   parallel structs; map request/response DTOs to/from them.
+- **Never copy code — abstract it.** If logic appears (or is about to appear) twice,
+  lift it to a shared fn / domain helper / repo method rather than pasting. A
+  near-duplicate that needs a tweak is a signal to parameterise the shared helper, not
+  fork it. (See `project-concepts` → Engineering principles.)
 - **Keep services & functions atomic** — one responsibility; thin handlers delegating to
   `services/`; wrap multi-step mutations in a single transaction (SERIALIZABLE for
   read-then-write invariants). No partial writes.

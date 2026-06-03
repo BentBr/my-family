@@ -77,6 +77,15 @@ parses `X-Family-Id`, cross-references it against the `families[]` claim, and in
 `user_claims_with_family`. `PanicCatcher` and the middleware return
 `Err(actix_web::Error::from(ApiError))` (NOT `into_parts/from_parts`, which panics).
 
+**Single-use tokens + actor re-validation (security invariant).** Validate before
+you burn: peek with a `find_consumable` / `find_pending`-style read first; only
+mark a token consumed once the action is authorised. Two-sided confirms (invite
+accept, owner transfer) re-check the **acting** user's *current* membership at
+confirm time — `confirm(actor_user_id)` returns `Forbidden` / `MembershipChanged`
+if their role changed after the token was issued, so a stale link can't act with
+revoked privileges. The FE consume views are correspondingly idempotent against a
+double-fired single-use token (see `frontend-workflow` / `playwright-e2e`).
+
 ## Error & response model specifics
 
 `ApiResponse<T> = { data, meta? }`; `meta` carries `pagination` / `request_id` /

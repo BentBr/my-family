@@ -50,6 +50,16 @@ test('a daily digest email fires 7 days before a birthday when reminders are on'
     // Fast-forward the worker to 06:00 Europe/Berlin on 2026-06-08
     // (= 04:00 UTC, CEST). The advance-clock endpoint runs one tick
     // immediately; the dispatcher then sends the queued digest.
+    //
+    // SCOPED time travel: the offset MUST be put back in the `finally`,
+    // even when the digest assertion fails or the test retries. While the
+    // worker clock sits days ahead, its janitor sweeps with a far-future
+    // cutoff and DELETEs every still-unconsumed single-use token the api
+    // mints at REAL time — so any later test's sign-in/invite races its
+    // consume against the next sweep and intermittently 401s with "link
+    // may have expired". (Verified live: a fresh token was inserted at
+    // :20.73 and swept at :20.80, milliseconds later.) Resetting restores
+    // one consistent "now" for everything that runs after this test.
     await clearMailpit()
     const advance = await page.request.post(`${WORKER_URL}/__test/advance-clock`, {
         headers: { 'content-type': 'application/json' },
@@ -57,13 +67,21 @@ test('a daily digest email fires 7 days before a birthday when reminders are on'
     })
     expect(advance.ok(), 'worker advance-clock should succeed').toBeTruthy()
 
-    // Within the dispatcher's poll window the digest email lands in Mailpit.
-    // The digest is sent to the signed-in user. `timeoutMs` is now an option
-    // rather than the positional second arg (was `30_000` before the recipient
-    // filter landed).
-    const digest = await waitForEmail((s) => /In 7 days|In 7 Tagen|🎂/.test(s), {
-        recipient: userEmail,
-        timeoutMs: 30_000,
-    })
-    expect(digest.text).toMatch(/Birthday Person/)
+    try {
+        // Within the dispatcher's poll window the digest email lands in
+        // Mailpit. The digest is sent to the signed-in user. `timeoutMs` is
+        // an option rather than the positional second arg (was `30_000`
+        // before the recipient filter landed).
+        const digest = await waitForEmail((s) => /In 7 days|In 7 Tagen|🎂/.test(s), {
+            recipient: userEmail,
+            timeoutMs: 30_000,
+        })
+        expect(digest.text).toMatch(/Birthday Person/)
+    } finally {
+        const reset = await page.request.post(`${WORKER_URL}/__test/advance-clock`, {
+            headers: { 'content-type': 'application/json' },
+            data: { to: new Date().toISOString() },
+        })
+        expect(reset.ok(), 'worker clock reset should succeed').toBeTruthy()
+    }
 })

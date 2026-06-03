@@ -7,23 +7,15 @@
  * strictly-necessary authentication cookie pair). Body copy lives in
  * `i18n/{en,de}.json` under `public.dataPolicy.*`.
  *
- * Not indexable: the `<meta name="robots" content="noindex,nofollow">`
- * meta is set via `useHead` below; the nginx config also injects an
+ * Not indexable: the route's `meta` descriptor (consumed centrally by
+ * `useRouteMeta` → `usePageMeta`) marks this page `noindex`, emitting a
+ * minimal title + `<meta name="robots" content="noindex,nofollow">` and
+ * nothing else; the nginx config also injects an
  * `X-Robots-Tag: noindex,nofollow` header for defence in depth.
  */
 import { useI18n } from 'vue-i18n'
-import { useHead } from '@unhead/vue'
-
-import { useLocaleStore } from '@/stores/locale'
 
 const { t, tm, rt } = useI18n()
-const locale = useLocaleStore()
-
-useHead({
-    title: () => `${t('public.dataPolicy.title')} — My Family Tree`,
-    htmlAttrs: { lang: () => locale.locale },
-    meta: [{ name: 'robots', content: 'noindex, nofollow' }],
-})
 
 // `tm()` returns the raw catalogue value for a key — we use it to read
 // the rights array as a list, then `rt()` translates each entry through

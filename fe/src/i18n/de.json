@@ -1,5 +1,64 @@
 {
     "app": { "title": "My Family Tree", "tagline": "Stammbaum, Kontakte, Erinnerungen." },
+    "meta": {
+        "siteName": "My Family Tree",
+        "default": {
+            "title": "My Family Tree",
+            "description": "Erfasse Deine Familie, teile was zählt und verpasse keinen Geburtstag mehr — ein Stammbaum mit Privatsphäre zuerst."
+        },
+        "signIn": {
+            "title": "Anmelden",
+            "description": "Melde Dich bei My Family Tree mit einem einmaligen Link an, der an Deine E-Mail gesendet wird — kein Passwort nötig."
+        },
+        "consume": {
+            "title": "Anmeldung läuft",
+            "description": "Deine Anmeldung bei My Family Tree wird abgeschlossen."
+        },
+        "inviteAccept": {
+            "title": "Einladung annehmen",
+            "description": "Tritt einer Familie auf My Family Tree mit Deinem Einladungslink bei."
+        },
+        "health": {
+            "title": "Status",
+            "description": "Dein My-Family-Tree-Konto auf einen Blick."
+        },
+        "account": {
+            "title": "Konto",
+            "description": "Verwalte Dein My-Family-Tree-Konto, E-Mail und Erinnerungseinstellungen."
+        },
+        "familyCreate": {
+            "title": "Familie erstellen",
+            "description": "Starte einen neuen Stammbaum auf My Family Tree."
+        },
+        "familyPick": {
+            "title": "Familie wählen",
+            "description": "Wechsle zwischen den Familien, zu denen Du auf My Family Tree gehörst."
+        },
+        "tree": {
+            "title": "Stammbaum",
+            "description": "Erkunde und bearbeite Deinen Stammbaum — Personen, Beziehungen und die Daten, die es wert sind, erinnert zu werden."
+        },
+        "upcoming": {
+            "title": "Anstehende Termine",
+            "description": "Anstehende Geburtstage und Jahrestage in Deiner Familie."
+        },
+        "adminFamily": {
+            "title": "Familieneinstellungen",
+            "description": "Benenne Deine Familie um und überprüfe ihre Mitglieder und Personen."
+        },
+        "adminAudit": {
+            "title": "Änderungsprotokoll",
+            "description": "Überprüfe den Verlauf der Änderungen an Deiner Familie."
+        },
+        "adminMembers": {
+            "title": "Mitglieder",
+            "description": "Verwalte die Mitglieder Deiner Familie und ihre Rollen."
+        },
+        "adminInvites": {
+            "title": "Ausstehende Einladungen",
+            "description": "Überprüfe und verwalte ausstehende Einladungen zu Deiner Familie."
+        }
+    },
     "nav": {
         "tree": "Stammbaum",
         "upcoming": "Anstehende Termine",

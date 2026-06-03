@@ -1,3 +1,4 @@
+import { createHead } from '@unhead/vue/client'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
@@ -32,7 +33,10 @@ async function mountWithLayout(layout: 'login' | 'main' | undefined): Promise<Re
     await router.isReady()
     return mount(App, {
         global: {
-            plugins: [createPinia(), i18n, router],
+            // `createHead()`: App.vue mounts `useRouteMeta()` → `useHead()`,
+            // which needs an unhead instance injected (main.ts provides it
+            // in the real app).
+            plugins: [createPinia(), i18n, router, createHead()],
             stubs: {
                 'v-app': { template: '<div class="vapp"><slot /></div>' },
                 LoginLayout: { template: '<div class="login-stub" />' },

@@ -12,6 +12,57 @@
         <title>My Family Tree · by Slothlike</title>
 
         <!--
+            Baked-in SEO + OpenGraph fallback (English defaults).
+
+            Link scrapers (WhatsApp, Slack, Facebook, Twitter/X,
+            LinkedIn, search bots) do NOT execute our JS — they read
+            only the served HTML. Without these tags a shared link
+            previews as the bare tab title and nothing else. So we bake
+            sensible English defaults here; `@unhead/vue` (via the
+            `usePageMeta` composable) overrides them per-route + per-
+            locale once the SPA hydrates for real visitors.
+
+            URLs use the production origin (https://my-fam-tree.eu); the
+            og:image points at the STABLE, non-hashed
+            `/brand/og-1200x630.png` emitted by `generate-images.js`.
+            hreflang advertises the German variant via the `?lang=de`
+            convention the sitemap generator uses.
+
+            Caveat: these baked tags are static English — a scraper that
+            never runs JS sees the en preview even for `?lang=de`. Full
+            per-locale scraper previews need a build-time prerender
+            (Phase C, vite-ssg), which is not yet wired.
+        -->
+        <meta
+            name="description"
+            content="Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
+        />
+        <link rel="canonical" href="https://my-fam-tree.eu/" />
+        <link rel="alternate" hreflang="en" href="https://my-fam-tree.eu/" />
+        <link rel="alternate" hreflang="de" href="https://my-fam-tree.eu/?lang=de" />
+        <link rel="alternate" hreflang="x-default" href="https://my-fam-tree.eu/" />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="My Family Tree" />
+        <meta property="og:title" content="My Family Tree · by Slothlike" />
+        <meta
+            property="og:description"
+            content="Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
+        />
+        <meta property="og:image" content="https://my-fam-tree.eu/brand/og-1200x630.png" />
+        <meta property="og:url" content="https://my-fam-tree.eu/" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:locale:alternate" content="de_DE" />
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="My Family Tree · by Slothlike" />
+        <meta
+            name="twitter:description"
+            content="Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
+        />
+        <meta name="twitter:image" content="https://my-fam-tree.eu/brand/og-1200x630.png" />
+
+        <!--
             Favicon stack — every entry resolves to a raster generated
             from `assets/sloth-center.png` by `pnpm generate:images`.
             No SVG vector logo is shipped; the design's vector glyphs

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ToastContainer from '@/components/common/ToastContainer.vue'
+import { useRouteMeta } from '@/composables/useRouteMeta'
 import { useThemeMode } from '@/composables/useThemeMode'
 import LoginLayout from '@/layouts/LoginLayout.vue'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -17,6 +18,13 @@ const layout = computed<Layout>(() => (route.meta.layout as Layout | undefined) 
 // sync; reads the persisted ThemeMode from `useUiStore`. Mounted at
 // the root so the side effect is process-wide.
 useThemeMode()
+
+// Single owner of the document head — resolves the active route's SEO
+// descriptor (title + description + OG/Twitter + canonical/hreflang)
+// through the shared `usePageMeta` composable. Mounted once here so
+// every route (public + authenticated) gets metadata with no per-view
+// wiring; the head re-renders on navigation and on locale switch.
+useRouteMeta()
 </script>
 
 <template>

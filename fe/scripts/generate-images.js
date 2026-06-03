@@ -117,12 +117,21 @@ async function generateOgImage() {
     // 1536 × 1024 (ratio 1.5). `fit: 'cover'` centre-crops top/bottom
     // off the source — the sloth family stays middle of frame.
     //
-    // Hashed via src/assets/ so a refreshed OG image lands at a new URL,
-    // forcing social-media crawlers to re-fetch on the next crawl
-    // instead of serving the prior URL's cached card forever.
-    const out = path.join(srcBrandDir, 'og-1200x630.png')
-    await sharp(SLOTH_FAMILY).resize(1200, 630, { fit: 'cover', position: 'centre' }).png({ quality: 92 }).toFile(out)
+    // Emitted to BOTH brand dirs:
+    //   - src/assets/brand/ — hashed, for any component that imports it.
+    //   - public/brand/ — STABLE, non-hashed `/brand/og-1200x630.png`.
+    //     This is the URL the SEO meta (`og:image`) and the baked
+    //     index.html fallback reference. It MUST stay a fixed path so a
+    //     social-media crawler that never executes our JS still resolves
+    //     a working absolute URL. Brand assets change rarely and nginx
+    //     serves /brand/* with a 1-day must-revalidate cache, so a
+    //     refresh still propagates within a day.
+    const pipeline = () =>
+        sharp(SLOTH_FAMILY).resize(1200, 630, { fit: 'cover', position: 'centre' }).png({ quality: 92 })
+    await pipeline().toFile(path.join(srcBrandDir, 'og-1200x630.png'))
     console.log('  src/assets/brand/og-1200x630.png')
+    await pipeline().toFile(path.join(publicBrandDir, 'og-1200x630.png'))
+    console.log('  public/brand/og-1200x630.png')
 }
 
 async function generateHeroImage() {

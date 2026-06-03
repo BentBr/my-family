@@ -9,15 +9,15 @@
  *      tree-view screenshot is dropped at `assets/landing/tree.png`.
  *   4. Footer CTA: bold "Create an account" call.
  *
- * Head metadata is driven by `@unhead/vue`'s `useHead` so it can be
- * picked up by a static-site-generation pass during the build.
+ * Head metadata (title, description, OG/Twitter, canonical, hreflang)
+ * is owned centrally by `useRouteMeta` (mounted in `App.vue`) via the
+ * shared `usePageMeta` composable — the route's `meta` descriptor names
+ * the i18n keys, so this view declares no head of its own.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useHead } from '@unhead/vue'
 
 import { currentResolvedTheme } from '@/composables/useThemeMode'
-import { useLocaleStore } from '@/stores/locale'
 import { useUiStore } from '@/stores/ui'
 
 // Importing the brand imagery from `@/assets/` lets Vite hash the
@@ -29,10 +29,8 @@ import treeExampleLight960 from '@/assets/brand/tree-example-light-960.webp'
 import treeExampleLight1280 from '@/assets/brand/tree-example-light-1280.webp'
 import treeExampleDark960 from '@/assets/brand/tree-example-dark-960.webp'
 import treeExampleDark1280 from '@/assets/brand/tree-example-dark-1280.webp'
-import ogImage from '@/assets/brand/og-1200x630.png'
 
 const { t } = useI18n()
-const locale = useLocaleStore()
 const ui = useUiStore()
 
 // Tree-screenshot URL pair — swaps between the light and dark variants
@@ -47,34 +45,6 @@ const treeExample = computed(() =>
         ? { src: treeExampleDark960, srcset: `${treeExampleDark960} 960w, ${treeExampleDark1280} 1280w` }
         : { src: treeExampleLight960, srcset: `${treeExampleLight960} 960w, ${treeExampleLight1280} 1280w` },
 )
-
-const baseUrl = (import.meta.env['VITE_BASE_URL'] as string | undefined) ?? 'https://my-fam-tree.eu'
-const ogLocale = computed(() => (locale.locale === 'de' ? 'de_DE' : 'en_US'))
-
-useHead({
-    title: () => t('public.home.hero.title') + ' — My Family Tree',
-    htmlAttrs: { lang: () => locale.locale },
-    meta: [
-        { name: 'description', content: () => t('public.home.hero.lede') },
-        { name: 'robots', content: 'index, follow' },
-        { property: 'og:type', content: 'website' },
-        { property: 'og:title', content: () => t('public.home.hero.title') + ' — My Family Tree' },
-        { property: 'og:description', content: () => t('public.home.hero.lede') },
-        // `ogImage` resolves at build time to `/assets/og-1200x630-[hash].png`.
-        // Concatenating with `baseUrl` produces the absolute URL Facebook /
-        // Twitter / LinkedIn crawlers need (relative URLs are silently
-        // rejected by most card validators).
-        { property: 'og:image', content: `${baseUrl}${ogImage}` },
-        { property: 'og:locale', content: () => ogLocale.value },
-        { name: 'twitter:card', content: 'summary_large_image' },
-    ],
-    link: [
-        { rel: 'canonical', href: `${baseUrl}/` },
-        { rel: 'alternate', hreflang: 'en', href: `${baseUrl}/` },
-        { rel: 'alternate', hreflang: 'de', href: `${baseUrl}/` },
-        { rel: 'alternate', hreflang: 'x-default', href: `${baseUrl}/` },
-    ],
-})
 
 interface Feature {
     key: 'relations' | 'reminders' | 'privacy'

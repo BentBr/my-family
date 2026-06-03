@@ -1,5 +1,64 @@
 {
     "app": { "title": "My Family Tree", "tagline": "Family tree, contacts, reminders." },
+    "meta": {
+        "siteName": "My Family Tree",
+        "default": {
+            "title": "My Family Tree",
+            "description": "Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
+        },
+        "signIn": {
+            "title": "Sign in",
+            "description": "Sign in to My Family Tree with a one-time link sent to your email — no password to remember."
+        },
+        "consume": {
+            "title": "Signing you in",
+            "description": "Completing your sign-in to My Family Tree."
+        },
+        "inviteAccept": {
+            "title": "Accept invitation",
+            "description": "Join a family on My Family Tree using your invitation link."
+        },
+        "health": {
+            "title": "Status",
+            "description": "Your My Family Tree account at a glance."
+        },
+        "account": {
+            "title": "Account",
+            "description": "Manage your My Family Tree account, email and reminder preferences."
+        },
+        "familyCreate": {
+            "title": "Create a family",
+            "description": "Start a new family tree on My Family Tree."
+        },
+        "familyPick": {
+            "title": "Choose a family",
+            "description": "Switch between the families you belong to on My Family Tree."
+        },
+        "tree": {
+            "title": "Family tree",
+            "description": "Explore and edit your family tree — people, relationships and the dates worth remembering."
+        },
+        "upcoming": {
+            "title": "Upcoming dates",
+            "description": "Birthdays and anniversaries coming up across your family."
+        },
+        "adminFamily": {
+            "title": "Family settings",
+            "description": "Rename your family and review its members and people."
+        },
+        "adminAudit": {
+            "title": "Audit log",
+            "description": "Review the history of changes made to your family."
+        },
+        "adminMembers": {
+            "title": "Members",
+            "description": "Manage the members of your family and their roles."
+        },
+        "adminInvites": {
+            "title": "Pending invites",
+            "description": "Review and manage outstanding invitations to your family."
+        }
+    },
     "nav": {
         "tree": "Tree",
         "upcoming": "Upcoming dates",

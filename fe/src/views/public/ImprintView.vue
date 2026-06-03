@@ -6,23 +6,15 @@
  * `public.imprint.*`). Email is `hello@my-fam-tree.eu`; phone is the
  * operator's existing line.
  *
- * Not indexable: the `<meta name="robots" content="noindex,nofollow">`
- * meta is set via `useHead` below; the nginx config also injects an
+ * Not indexable: the route's `meta` descriptor (consumed centrally by
+ * `useRouteMeta` → `usePageMeta`) marks this page `noindex`, emitting a
+ * minimal title + `<meta name="robots" content="noindex,nofollow">` and
+ * nothing else; the nginx config also injects an
  * `X-Robots-Tag: noindex,nofollow` header for defence in depth.
  */
 import { useI18n } from 'vue-i18n'
-import { useHead } from '@unhead/vue'
-
-import { useLocaleStore } from '@/stores/locale'
 
 const { t } = useI18n()
-const locale = useLocaleStore()
-
-useHead({
-    title: () => `${t('public.imprint.title')} — My Family Tree`,
-    htmlAttrs: { lang: () => locale.locale },
-    meta: [{ name: 'robots', content: 'noindex, nofollow' }],
-})
 
 const email = 'hello@my-fam-tree.eu'
 const phone = '+49 (0) 172 511 2820'

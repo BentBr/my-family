@@ -13,18 +13,13 @@
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
 
-import { useUpdateMe } from '@/api/hooks/users'
-import { useAuthStore } from '@/stores/auth'
+import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 import { useLocaleStore, type SupportedLocale } from '@/stores/locale'
 
 const locale = useLocaleStore()
-const auth = useAuthStore()
-const update = useUpdateMe()
 const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
+const pick = useLocaleSwitch()
 
 interface Choice {
     value: SupportedLocale
@@ -38,22 +33,9 @@ const choices: Choice[] = [
 
 const active = computed(() => choices.find((c) => c.value === locale.locale) ?? choices[0])
 
-function pick(next: SupportedLocale): void {
-    if (next === locale.locale) return
-    locale.set(next)
-    // The URL is the source of truth for the display locale (every route
-    // carries a `/en`/`/de` prefix and the router's seeding guard syncs
-    // the store FROM it). Swap the prefix in place so the next navigation
-    // doesn't snap the UI back to the URL's old locale.
-    void router.replace({
-        params: { ...route.params, lang: next },
-        query: route.query,
-        hash: route.hash,
-    })
-    if (auth.status === 'authenticated') {
-        update.mutate({ locale: next })
-    }
-}
+// Store flip + in-place URL-prefix swap + backend write-through all live
+// in the shared `useLocaleSwitch` composable (the mobile fold-in inside
+// AccountControl uses the exact same behaviour).
 </script>
 
 <template>

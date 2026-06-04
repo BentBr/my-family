@@ -42,6 +42,18 @@ declare module 'vue-router' {
          * (see `main.ts` + `vite.config.ts`).
          */
         public?: boolean
+        /**
+         * Content-width tier for the `MainLayout` page container. Drives one
+         * coherent system instead of per-view max-widths:
+         *   - `'full'`    — no clamp, fills the canvas (the tree).
+         *   - `'wide'`    — clamped wide + centered (data tables: audit,
+         *     members, invites, upcoming) so they fit the screen but don't
+         *     sprawl on ultrawide.
+         *   - `'reading'` — clamped narrow + centered (forms / overview pages:
+         *     account, family settings, health, …). The DEFAULT when omitted.
+         * `public`/`login` layouts ignore this (they own their own width).
+         */
+        width?: 'full' | 'wide' | 'reading'
     }
 }
 
@@ -167,13 +179,13 @@ const routes: RouteRecordRaw[] = [
         path: `/${LANG}/tree`,
         name: 'tree',
         component: () => import('@/views/tree/TreeView.vue'),
-        meta: { layout: 'main', sidebar: 'main', requiresAuth: true, requiresFamily: true },
+        meta: { layout: 'main', sidebar: 'main', requiresAuth: true, requiresFamily: true, width: 'full' },
     },
     {
         path: `/${LANG}/upcoming`,
         name: 'upcoming',
         component: () => import('@/views/upcoming/UpcomingView.vue'),
-        meta: { layout: 'main', sidebar: 'main', requiresAuth: true, requiresFamily: true },
+        meta: { layout: 'main', sidebar: 'main', requiresAuth: true, requiresFamily: true, width: 'wide' },
     },
     {
         path: `/${LANG}/admin`,
@@ -189,19 +201,40 @@ const routes: RouteRecordRaw[] = [
         path: `/${LANG}/admin/audit`,
         name: 'admin-audit',
         component: () => import('@/views/admin/AdminAudit.vue'),
-        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresFamily: true, requiresAdmin: true },
+        meta: {
+            layout: 'main',
+            sidebar: 'admin',
+            requiresAuth: true,
+            requiresFamily: true,
+            requiresAdmin: true,
+            width: 'wide',
+        },
     },
     {
         path: `/${LANG}/admin/members`,
         name: 'admin-members',
         component: () => import('@/views/admin/AdminMembers.vue'),
-        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresFamily: true, requiresAdmin: true },
+        meta: {
+            layout: 'main',
+            sidebar: 'admin',
+            requiresAuth: true,
+            requiresFamily: true,
+            requiresAdmin: true,
+            width: 'wide',
+        },
     },
     {
         path: `/${LANG}/admin/invites`,
         name: 'admin-invites',
         component: () => import('@/views/admin/AdminInvites.vue'),
-        meta: { layout: 'main', sidebar: 'admin', requiresAuth: true, requiresFamily: true, requiresAdmin: true },
+        meta: {
+            layout: 'main',
+            sidebar: 'admin',
+            requiresAuth: true,
+            requiresFamily: true,
+            requiresAdmin: true,
+            width: 'wide',
+        },
     },
     // /reminders/* etc. are added in Phase 4b.
     // ---- Locale normalizer (must stay LAST — lowest match priority) ----
@@ -233,14 +266,18 @@ export { routes }
  */
 export function registerGuards(router: Router): void {
     // Every route carries the locale in the URL (`/en/tree`, `/de/imprint`).
-    // Seed the locale store from that param on BOTH server (prerender) and
-    // client so the rendered head + copy match the URL. The store's
-    // `bindToI18n` watcher persists the value, so the normalizer's
-    // `detectInitialLocale()` always agrees with the last URL seen.
+    // Seed the DISPLAY locale from that param on BOTH server (prerender) and
+    // client so the rendered head + copy match the URL. `applyFromUrl` does
+    // NOT persist — the URL is the highest-priority source for the page being
+    // shown, but merely viewing or following a `/en` link must not overwrite
+    // the user's stored `de` preference (the bug where opening `/` then
+    // bouncing through `/en` reset the saved choice). Only explicit choices
+    // (language menu, account form, account locale on sign-in) call `set()`,
+    // which persists.
     router.beforeEach((to) => {
         const lang = typeof to.params['lang'] === 'string' ? to.params['lang'] : undefined
         if (lang === 'en' || lang === 'de') {
-            useLocaleStore().set(lang as SupportedLocale)
+            useLocaleStore().applyFromUrl(lang as SupportedLocale)
         }
         return true
     })

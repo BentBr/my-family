@@ -7,20 +7,18 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 
 const route = useRoute()
 
-// Pages that need the full canvas width opt out of the 1200 px reading
-// clamp. The tree SVG fills its column; the admin tables read better
-// without the gutter. New full-width surfaces add their path here OR
-// flip their route's `meta.sidebar` to `'admin'` (admin-sidebar routes
-// are already considered wide).
-const WIDE_ROUTES = new Set(['/tree'])
-const isWide = computed(() => WIDE_ROUTES.has(route.path) || route.meta.sidebar === 'admin')
+// One coherent width system, driven by each route's `meta.width`
+// (see the router's RouteMeta declaration). Defaults to `'reading'`
+// so a new authenticated page is comfortably clamped + centered unless
+// it opts into `'wide'` (data tables) or `'full'` (the tree canvas).
+const width = computed<'full' | 'wide' | 'reading'>(() => route.meta.width ?? 'reading')
 </script>
 
 <template>
     <AppBar />
     <AppSidebar />
     <v-main>
-        <v-container fluid class="fade-router-view page-container" :class="{ 'page-container--wide': isWide }">
+        <v-container fluid class="fade-router-view page-container" :class="`page-container--${width}`">
             <router-view v-slot="{ Component, route: r }">
                 <transition name="fade" mode="out-in" appear>
                     <!-- Key on `path`, not `fullPath`. Including the query
@@ -37,18 +35,41 @@ const isWide = computed(() => WIDE_ROUTES.has(route.path) || route.meta.sidebar 
 </template>
 
 <style scoped>
-/* Text-heavy pages clamp to 1200 px on md+ breakpoints so paragraphs
- * and forms stay within a comfortable reading width on ultrawide
- * displays. Pages that need the full canvas (the tree SVG, admin
- * tables) opt out via the `--wide` modifier set in script-setup
- * above. The base padding is preserved at all widths — v-container's
- * own padding handles the narrow side. */
+/* Coherent page-width tiers. All three keep `width: 100%` so the container
+ * never overflows its column; the md+ clamps below add a max + centre. The
+ * base v-container padding is preserved everywhere except the full-bleed
+ * tier, which the tree canvas wants edge-to-edge. */
 .page-container {
     width: 100%;
 }
+
+/* Full-bleed: the tree fills the whole canvas — no reading clamp and no
+ * outer scrollbar. Fill the height v-main hands us and let the tree manage
+ * its own internal pan/scroll; the page itself must not produce a second
+ * scrollbar on large screens (the regression that prompted this). */
+.page-container--full {
+    max-width: none;
+    padding: 0;
+    /* Exactly the viewport height minus the app bar (v-main already pads the
+     * top by `--v-layout-top`), so the page total is one viewport — no outer
+     * scrollbar. Flex column lets the tree page fill the remaining height. */
+    height: calc(100dvh - var(--v-layout-top, 64px));
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
 @media (min-width: 960px) {
-    .page-container:not(.page-container--wide) {
-        max-width: 1200px;
+    /* Forms + overview pages (account, family settings, health, …). */
+    .page-container--reading {
+        max-width: 960px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    /* Data tables (audit, members, invites, upcoming): roomy, but contained
+     * so they don't sprawl edge-to-edge on ultrawide displays. */
+    .page-container--wide {
+        max-width: 1600px;
         margin-left: auto;
         margin-right: auto;
     }

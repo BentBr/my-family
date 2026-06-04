@@ -54,6 +54,18 @@ describe('locale store', () => {
         const s = useLocaleStore()
         s.set('de')
         expect(s.locale).toBe('de')
+        expect(localStorage.getItem('my-fam-tree:locale')).toBe('de')
+    })
+
+    it('applyFromUrl() updates the display locale WITHOUT persisting', () => {
+        // Viewing a `/en` URL must not clobber a stored `de` preference —
+        // only an explicit `set()` writes localStorage.
+        localStorage.setItem('my-fam-tree:locale', 'de')
+        vi.stubGlobal('navigator', { language: 'en-US' })
+        const s = useLocaleStore()
+        s.applyFromUrl('en')
+        expect(s.locale).toBe('en')
+        expect(localStorage.getItem('my-fam-tree:locale')).toBe('de')
     })
 
     it('bindToI18n writes initial locale and watches for changes', async () => {

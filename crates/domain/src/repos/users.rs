@@ -31,6 +31,14 @@ impl Locale {
             Self::De => "de",
         }
     }
+
+    /// Parse `"en"` / `"de"` (case-insensitive), falling back to [`Locale::En`]
+    /// for anything else — used to seed a brand-new account from the locale the
+    /// FE detected on the sign-in page.
+    #[must_use]
+    pub const fn from_str_or_en(s: &str) -> Self {
+        if s.as_bytes().eq_ignore_ascii_case(b"de") { Self::De } else { Self::En }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

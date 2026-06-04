@@ -325,8 +325,9 @@ pub async fn email_change_request(
     // (e.g. a coffee-shop session) can't be hijacked into the attacker's
     // inbox. The body shows the proposed new address so the recipient can
     // verify they really initiated the change.
-    let link = format!("{}/account/email-change/consume?token={}", state.cfg.web.public_url, token);
     let locale = EmailLocale::from_str_or_en(user.locale.as_str());
+    let link = locale
+        .link(&state.cfg.web.public_url, &format!("/account/email-change/consume?token={token}"));
     let name = Some(user.display_name.trim()).filter(|n| !n.is_empty());
     let email_msg = render_email_change(locale, &state.cfg.web.public_url, &link, &new_email, name)
         .map_err(internal)?;

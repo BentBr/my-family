@@ -254,7 +254,8 @@ impl my_fam_tree_domain::EmailOutboxRepo for SyncOutbox {
 }
 
 /// Pull the magic-link token out of the email's plain-text body. The template
-/// formats the link as `{web_public_url}/auth/consume?token={token}`.
+/// formats the link as `{web_public_url}/{locale}/auth/consume?token={token}`;
+/// splitting on `token=` is independent of the locale prefix.
 pub fn extract_token_from_link(body: &str) -> String {
     let after = body.split("token=").nth(1).expect("token= present");
     after.split(|c: char| c.is_whitespace() || c == '"').next().expect("token chars").to_string()

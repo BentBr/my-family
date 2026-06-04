@@ -19,11 +19,16 @@ describe('useRequestMagicLink', () => {
         mocked.POST.mockReset()
     })
 
-    it('POSTs to /auth/magic-link with the supplied email', async () => {
+    it('POSTs to /auth/magic-link with the email AND the FE-detected locale', async () => {
+        // The hook reads the locale store (seeded from the URL prefix on the
+        // sign-in page) so the backend can seed a new account + locale-prefix
+        // the magic-link URL. Default store locale is 'en'.
         mocked.POST.mockResolvedValueOnce({ data: undefined, error: undefined })
         const { result } = makeHookWrapper(() => useRequestMagicLink())
         await result.mutateAsync('a@b')
-        expect(mocked.POST).toHaveBeenCalledWith('/api/v1/auth/magic-link', { body: { email: 'a@b' } })
+        expect(mocked.POST).toHaveBeenCalledWith('/api/v1/auth/magic-link', {
+            body: { email: 'a@b', locale: 'en' },
+        })
     })
 
     it('rejects when the response carries an error', async () => {

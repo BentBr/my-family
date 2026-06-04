@@ -1,16 +1,25 @@
 import { useMutation } from '@tanstack/vue-query'
 
 import { useAuthStore } from '@/stores/auth'
+import { useLocaleStore } from '@/stores/locale'
 
 import { client } from '../client'
 import { expectOk, unwrap } from '../request'
 
 export function useRequestMagicLink() {
+    const locale = useLocaleStore()
     // The "sent" envelope is ignored by callers (LoginView just shows the
     // check-inbox state regardless), so `expectOk` is the right shape —
     // it throws on error and resolves to void otherwise.
+    //
+    // We send the locale the FE resolved on the sign-in page (URL prefix →
+    // store) so the backend can (a) seed a brand-new account's preference and
+    // (b) locale-prefix the magic-link URL — the link then lands directly on
+    // the right-language route instead of bouncing through a redirect. For a
+    // returning user the backend keeps their stored account locale.
     return useMutation({
-        mutationFn: (email: string) => expectOk(client.POST('/api/v1/auth/magic-link', { body: { email } })),
+        mutationFn: (email: string) =>
+            expectOk(client.POST('/api/v1/auth/magic-link', { body: { email, locale: locale.locale } })),
     })
 }
 

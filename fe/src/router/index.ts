@@ -95,7 +95,22 @@ function normalizeToLocale(to: { path: string; query: LocationQuery; hash: strin
     }
     const rest = LOCALE_LIKE.test(first) ? segments.slice(1) : segments
     const suffix = rest.length > 0 ? `/${rest.join('/')}` : ''
-    return { path: `/${detectInitialLocale()}${suffix}`, query: to.query, hash: to.hash }
+    return { path: `/${preferredLocale()}${suffix}`, query: to.query, hash: to.hash }
+}
+
+/**
+ * Locale for a path that carries none (bare `/`, …). For a signed-in user
+ * their ACCOUNT locale wins (it's authoritative — the enforce-guard would
+ * redirect to it anyway, so resolving to it here avoids a double hop);
+ * otherwise the anonymous chain (`detectInitialLocale`: localStorage →
+ * browser → en). Auth is skipped under SSR (no session during prerender).
+ */
+function preferredLocale(): SupportedLocale {
+    if (!import.meta.env.SSR) {
+        const account = useAuthStore().user?.locale
+        if (account === 'en' || account === 'de') return account
+    }
+    return detectInitialLocale()
 }
 
 const routes: RouteRecordRaw[] = [
@@ -309,14 +324,14 @@ export function registerGuards(router: Router): void {
                 console.error('[router] unexpected auth hydrate failure', e)
             }
         }
-        const justSignedIn = wasAnonymous && auth.status === 'authenticated'
-        // The moment a session is (re)established, the user's BACKEND
-        // locale preference wins ONCE over the URL prefix: hydrate just
-        // mirrored it into the locale store (see `applyClaimsPayload`), and
-        // we swap the prefix so URL + copy agree. Subsequent navigations go
-        // back to URL-wins — an authenticated user following an `/en/…`
-        // link sees English without being yanked to their stored locale.
-        if (justSignedIn) {
+        // Account locale is AUTHORITATIVE for a signed-in user: their stored
+        // preference is enforced on every navigation, so the URL prefix can't
+        // drift away from it (the discrepancy where account said `en` but the
+        // URL / display / localStorage were all `de`). Changing the language
+        // (menu or account form) updates the account first, so this never
+        // fights an in-flight switch. The URL-highest rule still governs the
+        // ANONYMOUS public site — this branch only runs once authenticated.
+        if (auth.status === 'authenticated') {
             const pref = auth.user?.locale
             const urlLang = to.params['lang']
             if ((pref === 'en' || pref === 'de') && typeof urlLang === 'string' && urlLang !== pref) {

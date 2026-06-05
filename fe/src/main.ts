@@ -80,7 +80,11 @@ export const createApp = ViteSSG(
         })
 
         app.use(pinia)
-        app.use(router)
+        // NB: do NOT `app.use(router)` here — ViteSSG installs the router
+        // itself immediately after this callback returns. Installing it
+        // again triggers Vue's "Plugin has already been applied" warning.
+        // We still receive the `router` instance to attach guards + the
+        // client navigator / chunk-reload below, which don't need install.
         app.use(i18nInstance)
         app.use(vuetify)
         app.use(VueQueryPlugin, { queryClient })

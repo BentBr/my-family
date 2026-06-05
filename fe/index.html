@@ -17,18 +17,19 @@
             This block only matters for the SPA shell (`index.html`)
             served on NON-prerendered routes: link scrapers don't run our
             JS, so without it a shared app link previews as the bare tab
-            title. The public pages are prerendered by vite-ssg with
-            full per-locale heads, and `onPageRendered` (vite.config.ts)
-            STRIPS everything between the seo-fallback markers from those
-            files — the markers below are that contract, don't remove
-            them. On real clients `@unhead/vue` (via `usePageMeta`)
-            overrides the block per-route + per-locale after hydration.
+            title. The public pages are prerendered by vite-ssg with full
+            per-locale heads, and `onBeforePageRender` (vite.config.ts)
+            strips these baked SEO tags from those pages so `@unhead/vue`
+            (via `usePageMeta`) can inject the correct per-locale set.
 
             URLs use the production origin (https://my-fam-tree.eu); the
             og:image points at the STABLE, non-hashed
             `/brand/og-1200x630.png` emitted by `generate-images.js`.
+
+            NOTE: every comment in this file is stripped from the
+            production build (see the `strip-html-comments` plugin in
+            vite.config.ts) — they're here for dev readability only.
         -->
-        <!--seo-fallback-->
         <meta
             name="description"
             content="Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
@@ -57,7 +58,6 @@
             content="Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
         />
         <meta name="twitter:image" content="https://my-fam-tree.eu/brand/og-1200x630.png" />
-        <!--/seo-fallback-->
 
         <!--
             Favicon stack — every entry resolves to a raster generated

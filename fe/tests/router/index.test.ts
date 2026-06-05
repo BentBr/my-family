@@ -330,12 +330,13 @@ describe('locale normalization', () => {
         expect(locale.locale).toBe('de')
     })
 
-    it('swaps the URL prefix to the backend locale once on sign-in', async () => {
+    it('enforces the account locale over the URL for a signed-in user', async () => {
         // Hydrate succeeds with a German-preference user while the visitor
-        // sits on an /en URL: the prefix swaps ONCE (login moment); later
-        // navigations stay URL-wins. The router is built while the session
-        // is still anonymous (the default mock rejects) — the claims mock
-        // is installed AFTER, so the sign-in happens on the /en/health push.
+        // sits on an /en URL: the account locale is AUTHORITATIVE, so the
+        // prefix is forced to `/de` — and STAYS enforced on later navigations
+        // (an /en link is redirected back to /de). The router is built while
+        // the session is still anonymous (the default mock rejects); the
+        // claims mock is installed AFTER, so sign-in happens on the push.
         const router = await makeRouter('/en')
         ;(client.GET as Mock).mockResolvedValue({
             data: {
@@ -350,8 +351,8 @@ describe('locale normalization', () => {
         })
         await router.push('/en/health')
         expect(router.currentRoute.value.path).toBe('/de/health')
-        // URL-wins afterwards: an explicit /en link is honoured.
+        // Still enforced afterwards: an explicit /en link bounces back to /de.
         await router.push('/en/account')
-        expect(router.currentRoute.value.path).toBe('/en/account')
+        expect(router.currentRoute.value.path).toBe('/de/account')
     })
 })

@@ -27,13 +27,20 @@ export function useLocaleSwitch(): (next: SupportedLocale) => void {
     return (next: SupportedLocale): void => {
         if (next === locale.locale) return
         locale.set(next)
+        if (auth.status === 'authenticated') {
+            // Optimistically move the account locale FIRST: it's authoritative
+            // for a signed-in user, and the router's enforce-guard compares the
+            // URL prefix against it on the very next navigation — without this
+            // the URL swap below would be bounced straight back. The PATCH
+            // persists it; `useUpdateMe.onSuccess` re-applies the confirmed
+            // value (idempotent).
+            auth.patchUser({ locale: next })
+            update.mutate({ locale: next })
+        }
         void router.replace({
             params: { ...route.params, lang: next },
             query: route.query,
             hash: route.hash,
         })
-        if (auth.status === 'authenticated') {
-            update.mutate({ locale: next })
-        }
     }
 }

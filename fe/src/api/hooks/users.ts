@@ -49,10 +49,13 @@ export function useUpdateMe() {
             // would keep returning the OLD locale on the next hydrate — the
             // choice would silently revert on reload until the user logs out.
             // Re-mint the session token from the now-updated DB row so the
-            // preference persists. Fire-and-forget: the in-memory + localStorage
-            // state is already correct for this session.
+            // preference persists. Best-effort: the in-memory + localStorage
+            // state is already correct for this session, so a failed re-mint
+            // must not surface as an unhandled rejection (it would crash the
+            // turn under vitest's unhandled-error policy and is pointless noise
+            // in prod — the next real refresh/login re-syncs the token).
             if (vars.locale !== undefined) {
-                void auth.refresh()
+                void auth.refresh().catch(() => {})
             }
         },
     })

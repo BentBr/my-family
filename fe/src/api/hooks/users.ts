@@ -35,7 +35,7 @@ export function useUpdateMe() {
         mutationFn: (body: UpdateMeBody) => unwrap(client.PATCH('/api/v1/users/me', { body })),
         success: 'toasts.profile_saved',
         invalidate: () => [['users', 'me']],
-        onSuccess: (_vars, profile) => {
+        onSuccess: (vars, profile) => {
             // Profile.locale on the wire is `string`; narrow before
             // forwarding into the two stores that require the literal union.
             if (profile.locale === 'en' || profile.locale === 'de') {
@@ -43,6 +43,16 @@ export function useUpdateMe() {
                 auth.patchUser({ displayName: profile.display_name, locale: profile.locale })
             } else {
                 auth.patchUser({ displayName: profile.display_name })
+            }
+            // The locale is baked into the access JWT at mint time; this PATCH
+            // only updates the DB row, so `/auth/me` (which echoes the token)
+            // would keep returning the OLD locale on the next hydrate — the
+            // choice would silently revert on reload until the user logs out.
+            // Re-mint the session token from the now-updated DB row so the
+            // preference persists. Fire-and-forget: the in-memory + localStorage
+            // state is already correct for this session.
+            if (vars.locale !== undefined) {
+                void auth.refresh()
             }
         },
     })

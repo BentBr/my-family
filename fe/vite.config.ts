@@ -1,8 +1,47 @@
+import { gzipSync } from 'node:zlib'
 import { fileURLToPath, URL } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
 import { defineConfig, type Plugin } from 'vite'
 import vuetify from 'vite-plugin-vuetify'
+
+import { buildSitemapArtifacts, sitemapContentType } from './scripts/generate-sitemap.js'
+
+// Serve /sitemap.xml, the per-locale sitemaps (+ their `.gz`) and
+// /robots.txt in DEV. In prod nginx serves the generated files directly;
+// in dev they wouldn't exist, so the SPA fallback would hand them to the
+// locale normalizer (which redirects `/sitemap.xml` → `/en/sitemap.xml`
+// → 404). This middleware answers them before the SPA, with the SAME
+// content the build emits — so they are reachable AND exempt from locale
+// enforcement in both environments.
+function sitemapDevServer(): Plugin {
+    return {
+        name: 'sitemap-dev-server',
+        apply: 'serve',
+        configureServer(server) {
+            server.middlewares.use((req, res, next) => {
+                const url = (req.url ?? '').split('?')[0]
+                const name = url.replace(/^\//, '')
+                const gz = name.endsWith('.gz')
+                const baseName = gz ? name.slice(0, -3) : name
+                const artifacts = buildSitemapArtifacts()
+                const body = artifacts[baseName]
+                if (body === undefined) {
+                    next()
+                    return
+                }
+                res.setHeader('Content-Type', sitemapContentType(baseName))
+                res.setHeader('Cache-Control', 'no-cache')
+                if (gz) {
+                    res.setHeader('Content-Encoding', 'gzip')
+                    res.end(gzipSync(Buffer.from(body, 'utf8')))
+                } else {
+                    res.end(body)
+                }
+            })
+        },
+    }
+}
 
 // Drop every HTML comment from the production `index.html` shell. The
 // template carries explanatory prose (favicon stack, theme-color, fonts,
@@ -49,7 +88,7 @@ function stripSeoFallback(html: string): string {
 const PRERENDER_ROUTES = ['/en', '/de', '/en/imprint', '/de/imprint', '/en/data-policy', '/de/data-policy']
 
 export default defineConfig({
-    plugins: [vue(), vuetify({ autoImport: true }), stripHtmlComments()],
+    plugins: [vue(), vuetify({ autoImport: true }), stripHtmlComments(), sitemapDevServer()],
     resolve: {
         alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },

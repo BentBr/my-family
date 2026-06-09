@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.19](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.18...core-v0.1.19) (2026-06-09)
+
+
+### Features
+
+* **email:** locale-prefix every URL in transactional emails ([fc839f5](https://github.com/BentBr/my-fam-tree/commit/fc839f57aee98617285df6233d58c1492415648c))
+* **fe:** prerender public pages per locale + prefix ALL routes with /en|/de ([d492634](https://github.com/BentBr/my-fam-tree/commit/d492634122025251e12b62da8fa264428fe18ee2))
+* **fe:** SSG for content pages — per-locale prerender + /en|/de prefix for every route ([39c9644](https://github.com/BentBr/my-fam-tree/commit/39c96449dbf9d0f3e70815f477ce7b96ce5b5f9d))
+
+
+### Bug Fixes
+
+* **fe:** address PR review — localized anchors, mobile locale URL-swap, nginx trailing-slash ([70c5140](https://github.com/BentBr/my-fam-tree/commit/70c5140f197366779af38f109f941d5cc0f991ef))
+* **fe:** enforce account locale for signed-in users; strip prod DOM comments; quiet warnings ([20e818f](https://github.com/BentBr/my-fam-tree/commit/20e818f301ea7a4a0607061b85fa08e86b865b5b))
+* **fe:** green CI — swallow best-effort token-refresh rejection; account e2e expects localized label ([a315adc](https://github.com/BentBr/my-fam-tree/commit/a315adcf400e11b210e28a47effccb61e9aa7547))
+* **fe:** locale precedence + coherent page-width layout ([315294b](https://github.com/BentBr/my-fam-tree/commit/315294b413f63fd414c1e34b40801a5579ab8158))
+* **fe:** persist locale change via token re-mint; serve sitemap/robots (+ .gz) ([2d41738](https://github.com/BentBr/my-fam-tree/commit/2d4173869a6af488a04dc2af1a7bb4e964f02d66))
+
 ## [0.1.18](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.17...core-v0.1.18) (2026-06-03)
 
 

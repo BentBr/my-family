@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.20](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.19...core-v0.1.20) (2026-06-09)
+
+
+### Bug Fixes
+
+* **nginx:** emit relative redirects so / -&gt; /en|/de doesn't leak :8080 ([7121838](https://github.com/BentBr/my-fam-tree/commit/7121838a6d9c13cea8f5a3f634b931ccecaa2819))
+* **nginx:** emit relative redirects so / → /en|/de doesn't leak :8080 ([13a9bb1](https://github.com/BentBr/my-fam-tree/commit/13a9bb140d3ac1afb06dd1b448b6fa468677d722))
+
 ## [0.1.19](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.18...core-v0.1.19) (2026-06-09)
 
 

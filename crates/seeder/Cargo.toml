@@ -25,6 +25,7 @@ path = "src/main.rs"
 my-fam-tree-api = { path = "../api" }
 my-fam-tree-config = { path = "../config" }
 my-fam-tree-domain = { path = "../domain" }
+my-fam-tree-email = { path = "../email" }
 my-fam-tree-persistence = { path = "../persistence" }
 anyhow.workspace = true
 chrono.workspace = true

@@ -331,6 +331,11 @@ watch([isMounted, centerFromUrl] as const, ([mounted, target]) => {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    /* Fill the full-bleed MainLayout container (`page-container--full`,
+     * which is a fixed-height flex column) so the canvas row gets a real
+     * height to expand into and the page never grows a second scrollbar. */
+    height: 100%;
+    min-height: 0;
 }
 /* Let the title shrink and ellipsis-truncate inside the flex toolbar instead
  * of pushing the action buttons past the viewport edge on narrow screens.

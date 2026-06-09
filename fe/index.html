@@ -14,33 +14,30 @@
         <!--
             Baked-in SEO + OpenGraph fallback (English defaults).
 
-            Link scrapers (WhatsApp, Slack, Facebook, Twitter/X,
-            LinkedIn, search bots) do NOT execute our JS — they read
-            only the served HTML. Without these tags a shared link
-            previews as the bare tab title and nothing else. So we bake
-            sensible English defaults here; `@unhead/vue` (via the
-            `usePageMeta` composable) overrides them per-route + per-
-            locale once the SPA hydrates for real visitors.
+            This block only matters for the SPA shell (`index.html`)
+            served on NON-prerendered routes: link scrapers don't run our
+            JS, so without it a shared app link previews as the bare tab
+            title. The public pages are prerendered by vite-ssg with full
+            per-locale heads, and `onBeforePageRender` (vite.config.ts)
+            strips these baked SEO tags from those pages so `@unhead/vue`
+            (via `usePageMeta`) can inject the correct per-locale set.
 
             URLs use the production origin (https://my-fam-tree.eu); the
             og:image points at the STABLE, non-hashed
             `/brand/og-1200x630.png` emitted by `generate-images.js`.
-            hreflang advertises the German variant via the `?lang=de`
-            convention the sitemap generator uses.
 
-            Caveat: these baked tags are static English — a scraper that
-            never runs JS sees the en preview even for `?lang=de`. Full
-            per-locale scraper previews need a build-time prerender
-            (Phase C, vite-ssg), which is not yet wired.
+            NOTE: every comment in this file is stripped from the
+            production build (see the `strip-html-comments` plugin in
+            vite.config.ts) — they're here for dev readability only.
         -->
         <meta
             name="description"
             content="Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
         />
-        <link rel="canonical" href="https://my-fam-tree.eu/" />
-        <link rel="alternate" hreflang="en" href="https://my-fam-tree.eu/" />
-        <link rel="alternate" hreflang="de" href="https://my-fam-tree.eu/?lang=de" />
-        <link rel="alternate" hreflang="x-default" href="https://my-fam-tree.eu/" />
+        <link rel="canonical" href="https://my-fam-tree.eu/en" />
+        <link rel="alternate" hreflang="en" href="https://my-fam-tree.eu/en" />
+        <link rel="alternate" hreflang="de" href="https://my-fam-tree.eu/de" />
+        <link rel="alternate" hreflang="x-default" href="https://my-fam-tree.eu/en" />
 
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="My Family Tree" />
@@ -50,7 +47,7 @@
             content="Map your family, share what matters, and never miss a birthday — a privacy-first family tree."
         />
         <meta property="og:image" content="https://my-fam-tree.eu/brand/og-1200x630.png" />
-        <meta property="og:url" content="https://my-fam-tree.eu/" />
+        <meta property="og:url" content="https://my-fam-tree.eu/en" />
         <meta property="og:locale" content="en_US" />
         <meta property="og:locale:alternate" content="de_DE" />
 

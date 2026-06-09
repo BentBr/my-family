@@ -12,7 +12,7 @@ vi.mock('@/api/client', () => ({ client: { GET: vi.fn(), POST: vi.fn() } }))
 // minimum shape the composable touches (a writable name ref) so the
 // mount succeeds without dragging the Vuetify plugin into the harness.
 vi.mock('vuetify', () => ({
-    useTheme: () => ({ global: { name: ref('slothlikeLight') } }),
+    useTheme: () => ({ global: { name: ref('slothlikeLight') }, change: vi.fn() }),
 }))
 
 import App from '@/App.vue'

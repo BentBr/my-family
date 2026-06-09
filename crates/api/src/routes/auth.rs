@@ -70,6 +70,13 @@ pub(crate) async fn rate_limit_ip(
 #[serde(deny_unknown_fields)]
 pub struct MagicLinkReq {
     pub email: String,
+    /// Locale the FE detected on the sign-in page (`"en"` / `"de"`). Optional
+    /// for backwards-compatible callers; used to seed a brand-new account's
+    /// preference AND to locale-prefix the magic-link URL. For a RETURNING
+    /// user their stored account locale wins (it's their explicit setting),
+    /// so this only takes effect when the account doesn't exist yet.
+    #[serde(default)]
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -198,22 +205,31 @@ pub async fn magic_link(
     {
         Some(u) => (u, false),
         None => (
+            // Seed the new account with the locale the FE detected on the
+            // sign-in page (defaults to En for legacy callers that omit it).
+            // A returning user's stored preference is left untouched below.
             state
                 .users
-                .create(&email, Locale::En)
+                .create(&email, Locale::from_str_or_en(body.locale.as_deref().unwrap_or("en")))
                 .await
                 .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?,
             true,
         ),
     };
 
-    // Issue and persist a single-use token; the helper returns the full
-    // consume URL (only the hash hits the DB).
+    // The email locale + URL prefix both follow the user's effective locale:
+    // their stored account setting for a returning user, the just-seeded
+    // request locale for a fresh account.
+    let locale = EmailLocale::from_str_or_en(user.locale.as_str());
+
+    // Issue and persist a single-use token; the helper returns the full,
+    // locale-prefixed consume URL (only the hash hits the DB).
     let link = mint_magic_link_url(
         &state.magic_links,
         user.id,
         &user.email,
         &state.cfg.web.public_url,
+        locale,
         state.cfg.magic_link.ttl_seconds,
     )
     .await
@@ -223,7 +239,6 @@ pub async fn magic_link(
     // the source of truth, so a Redis flush can't lose mail and SMTP
     // slowness no longer blocks this request thread — the worker drains
     // the outbox out-of-band via SMTP with retry/backoff.
-    let locale = EmailLocale::from_str_or_en(user.locale.as_str());
     let app_url = state.cfg.web.public_url.as_str();
     // Brand-new accounts get the welcome/onboarding copy; returning users
     // get the plain sign-in email, greeted by name when we have one. Both

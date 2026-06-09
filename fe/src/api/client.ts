@@ -1,13 +1,27 @@
 import createClient, { type Middleware } from 'openapi-fetch'
 
 import { i18n } from '@/i18n'
-import { router } from '@/router'
 import { useActiveFamilyStore } from '@/stores/activeFamily'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 
 import { ApiClientError, type ApiErrorBody, type Warning } from './errors'
 import type { paths } from './schema'
+
+// The client must bounce a hard-expired session to `/auth/sign-in`, but
+// it can no longer import the router as a module-level singleton: under
+// `vite-ssg` the router is created per render (and per request during
+// prerender), so there is no single instance to import. Instead the app
+// boot (`main.ts`, inside the ViteSSG setup) injects a navigate callback
+// once the router exists. Until then — and during SSR/prerender, where a
+// 401 redirect is meaningless — calls are a safe no-op.
+type Navigate = (to: string) => void
+let navigate: Navigate = () => {}
+
+/** Wire the redirect callback the 401 path uses. Called once at boot. */
+export function setClientNavigator(fn: Navigate): void {
+    navigate = fn
+}
 
 // On any 401 the FE cannot silently refresh (refresh itself failed
 // too), clear the in-memory session, drop the HttpOnly cookies
@@ -45,10 +59,10 @@ function endSession(): void {
     // side-effect. The redundant `applyClaimsPayload(null)` inside
     // `auth.logout()` is a harmless idempotent safety net.
     void auth.logout()
-    // `replace` (not `push`) so the expired page never sits in history.
-    // Don't await — middleware must finish before the caller awaits and
-    // unmounts the source view. `void` satisfies `no-floating-promises`.
-    void router.replace('/auth/sign-in')
+    // `replace` semantics (the expired page never sits in history) live in
+    // the injected navigator. Fire-and-forget: middleware must finish
+    // before the caller awaits and unmounts the source view.
+    navigate('/auth/sign-in')
 }
 
 // Parse an error response body into the typed `ApiClientError`. Shared by

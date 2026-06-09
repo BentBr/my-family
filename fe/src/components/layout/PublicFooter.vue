@@ -11,6 +11,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useLocalizedPath } from '@/composables/useLocalizedPath'
 import { useLocaleStore } from '@/stores/locale'
 
 // Stack icons next to the brand names in the tagline. SVG assets live
@@ -24,6 +25,9 @@ import vueIcon from '@/assets/brand/vue.svg'
 const { t } = useI18n()
 const locale = useLocaleStore()
 const localeLabel = computed(() => (locale.locale === 'de' ? 'Deutsch' : 'English'))
+// Locale-prefixed legal links — these land in the PRERENDERED HTML, so
+// they must carry the active locale for crawlers / no-JS clients.
+const localized = useLocalizedPath()
 </script>
 
 <template>
@@ -44,10 +48,10 @@ const localeLabel = computed(() => (locale.locale === 'de' ? 'Deutsch' : 'Englis
                 <span class="public-footer__stack-name">Vue.js</span>.
             </span>
             <nav class="public-footer__links" aria-label="legal">
-                <RouterLink to="/imprint" data-testid="footer-imprint">
+                <RouterLink :to="localized('/imprint')" data-testid="footer-imprint">
                     {{ t('public.footer.links.imprint') }}
                 </RouterLink>
-                <RouterLink to="/data-policy" data-testid="footer-data-policy">
+                <RouterLink :to="localized('/data-policy')" data-testid="footer-data-policy">
                     {{ t('public.footer.links.dataPolicy') }}
                 </RouterLink>
                 <!-- GH source link — heart emoji + external repo URL. The

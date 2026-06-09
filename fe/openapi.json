@@ -3391,6 +3391,13 @@
         "properties": {
           "email": {
             "type": "string"
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Locale the FE detected on the sign-in page (`\"en\"` / `\"de\"`). Optional\nfor backwards-compatible callers; used to seed a brand-new account's\npreference AND to locale-prefix the magic-link URL. For a RETURNING\nuser their stored account locale wins (it's their explicit setting),\nso this only takes effect when the account doesn't exist yet."
           }
         },
         "additionalProperties": false

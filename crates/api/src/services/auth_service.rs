@@ -12,6 +12,7 @@ use my_fam_tree_config::JwtConfig;
 use my_fam_tree_domain::{
     FamilyMembershipRepo, MagicLinkPurpose, MagicLinkRepo, RefreshTokenRepo, User, UserId,
 };
+use my_fam_tree_email::Locale;
 
 use crate::auth::{FamilyClaim, JwtIssuer, generate_opaque_token};
 
@@ -101,6 +102,7 @@ pub async fn mint_magic_link_url(
     user_id: UserId,
     email: &str,
     web_public_url: &str,
+    locale: Locale,
     ttl_seconds: u64,
 ) -> anyhow::Result<String> {
     let (token, hash) = generate_opaque_token();
@@ -116,5 +118,7 @@ pub async fn mint_magic_link_url(
         .await
         .map_err(|e| anyhow::anyhow!(e.to_string()))
         .context("persist magic-link token")?;
-    Ok(format!("{web_public_url}/auth/consume?token={token}"))
+    // Locale-prefixed so the consume link lands directly on the
+    // recipient's-language route (every FE route is `/en|/de`-prefixed).
+    Ok(locale.link(web_public_url, &format!("/auth/consume?token={token}")))
 }

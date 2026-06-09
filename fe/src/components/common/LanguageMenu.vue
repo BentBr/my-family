@@ -14,14 +14,12 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useUpdateMe } from '@/api/hooks/users'
-import { useAuthStore } from '@/stores/auth'
+import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 import { useLocaleStore, type SupportedLocale } from '@/stores/locale'
 
 const locale = useLocaleStore()
-const auth = useAuthStore()
-const update = useUpdateMe()
 const { t } = useI18n()
+const pick = useLocaleSwitch()
 
 interface Choice {
     value: SupportedLocale
@@ -35,13 +33,9 @@ const choices: Choice[] = [
 
 const active = computed(() => choices.find((c) => c.value === locale.locale) ?? choices[0])
 
-function pick(next: SupportedLocale): void {
-    if (next === locale.locale) return
-    locale.set(next)
-    if (auth.status === 'authenticated') {
-        update.mutate({ locale: next })
-    }
-}
+// Store flip + in-place URL-prefix swap + backend write-through all live
+// in the shared `useLocaleSwitch` composable (the mobile fold-in inside
+// AccountControl uses the exact same behaviour).
 </script>
 
 <template>

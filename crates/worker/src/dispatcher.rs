@@ -61,8 +61,10 @@ pub async fn handle(state: &WorkerState, job: &ReminderJob) -> anyhow::Result<()
 
     let locale = Locale::from_str_or_en(user.locale.as_str());
     let lines: Vec<String> = events.iter().map(|e| render_line(locale, e)).collect();
-    let tree_link = format!("{}/tree", state.web_public_url);
-    let manage_link = format!("{}/account", state.web_public_url);
+    // Locale-prefixed so the digest's links open the recipient's-language
+    // routes directly (every FE route is `/en|/de`-prefixed).
+    let tree_link = locale.link(&state.web_public_url, "/tree");
+    let manage_link = locale.link(&state.web_public_url, "/account");
 
     let email = render_reminder_digest(
         locale,

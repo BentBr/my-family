@@ -225,10 +225,16 @@ pub async fn begin(
         .map_err(internal)?
         .ok_or_else(|| internal("active family missing"))?;
 
-    let from_link =
-        format!("{}/account/owner-transfer/confirm?token={}", state.cfg.web.public_url, from_token);
-    let to_link =
-        format!("{}/account/owner-transfer/confirm?token={}", state.cfg.web.public_url, to_token);
+    // Each recipient's confirmation link is prefixed with THEIR own locale
+    // (the two parties may have different language preferences).
+    let from_link = EmailLocale::from_str_or_en(from_user.locale.as_str()).link(
+        &state.cfg.web.public_url,
+        &format!("/account/owner-transfer/confirm?token={from_token}"),
+    );
+    let to_link = EmailLocale::from_str_or_en(to_user.locale.as_str()).link(
+        &state.cfg.web.public_url,
+        &format!("/account/owner-transfer/confirm?token={to_token}"),
+    );
     send_transfer_emails(
         &state,
         &family.name,

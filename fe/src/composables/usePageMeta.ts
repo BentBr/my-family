@@ -86,6 +86,22 @@ function canonicalUrlFor(path: string | undefined): string {
     return `${PUBLIC_BASE_URL}${p === '/' || p === '' ? '/' : p}`
 }
 
+/**
+ * Strip a leading `/en` or `/de` locale segment off a public route path,
+ * returning the locale-agnostic remainder (`''` for the home page). The
+ * public site is locale-PREFIXED, so `/de/imprint` → `/imprint`,
+ * `/en` → ``. Used to build the per-locale canonical + hreflang URLs.
+ */
+function stripLocalePrefix(path: string): string {
+    const stripped = path.replace(/^\/(en|de)(?=\/|$)/, '')
+    return stripped === '/' ? '' : stripped
+}
+
+/** Locale-prefixed absolute URL: `https://base/de/imprint`, `https://base/en`. */
+function localizedUrl(locale: SupportedLocale, suffix: string): string {
+    return `${PUBLIC_BASE_URL}/${locale}${suffix}`
+}
+
 // Same story for `ResolvableMeta`: a union whose arms key on `name` XOR
 // `property` (a both-optional shape matches no arm and falls into the
 // charset arm's requirements). Each tag declares exactly one.
@@ -110,11 +126,17 @@ export function usePageMeta(descriptor: MaybeRefOrGetter<PageMetaDescriptor>): v
 
     const pageTitle = computed(() => `${t(d.value.titleKey)} · ${BRAND_SUFFIX}`)
 
-    // Canonical URL: the descriptor may pin one; otherwise the live route
-    // path (routes are not locale-prefixed today — locale variants are
-    // addressed by the `?lang=` convention the sitemap already advertises,
-    // see the hreflang alternates below).
-    const canonical = computed(() => canonicalUrlFor(d.value.canonicalPath ?? route.path))
+    // Canonical URL. For the locale-prefixed public pages we build it from
+    // the live route path so it carries the right `/en` or `/de` prefix
+    // and survives the static prerender (where the path IS the locale
+    // source of truth). A descriptor may pin an explicit `canonicalPath`
+    // for non-public pages that want a fixed self-canonical.
+    const localeSuffix = computed(() => stripLocalePrefix(route.path))
+    const canonical = computed(() =>
+        d.value.canonicalPath !== undefined
+            ? canonicalUrlFor(d.value.canonicalPath)
+            : localizedUrl(locale.locale, localeSuffix.value),
+    )
 
     const metaTags = computed<MetaTag[]>(() => {
         if (d.value.noindex === true) {
@@ -147,13 +169,14 @@ export function usePageMeta(descriptor: MaybeRefOrGetter<PageMetaDescriptor>): v
         if (d.value.noindex === true) return []
         const links: LinkTag[] = [{ rel: 'canonical', href: canonical.value }]
         if (d.value.hreflang === true) {
-            // hreflang uses the `?lang=de` convention the sitemap generator
-            // already advertises (no locale-prefixed URLs today — that's the
-            // planned vite-ssg prerender step). x-default → English.
+            // hreflang points at the locale-PREFIXED variants (`/en…`,
+            // `/de…`) that vite-ssg actually prerenders — each is a real,
+            // crawlable URL, not a query-string hint. x-default → English.
+            const suffix = localeSuffix.value
             links.push(
-                { rel: 'alternate', hreflang: 'en', href: canonical.value, type: 'text/html' },
-                { rel: 'alternate', hreflang: 'de', href: `${canonical.value}?lang=de`, type: 'text/html' },
-                { rel: 'alternate', hreflang: 'x-default', href: canonical.value, type: 'text/html' },
+                { rel: 'alternate', hreflang: 'en', href: localizedUrl('en', suffix), type: 'text/html' },
+                { rel: 'alternate', hreflang: 'de', href: localizedUrl('de', suffix), type: 'text/html' },
+                { rel: 'alternate', hreflang: 'x-default', href: localizedUrl('en', suffix), type: 'text/html' },
             )
         }
         return links

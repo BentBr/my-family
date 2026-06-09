@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { useClearMyAvatar, useMe, useRequestEmailChange, useSetMyAvatar, useUpdateMe } from '@/api/hooks/users'
 import DefaultAvatar from '@/components/common/DefaultAvatar.vue'
@@ -10,6 +10,7 @@ import ReminderPrefsSection from '@/views/account/ReminderPrefsSection.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const me = useMe()
 const update = useUpdateMe()
@@ -70,6 +71,17 @@ async function saveProfile(): Promise<void> {
             display_name: displayName.value.trim(),
             locale: localeSelected.value,
         })
+        // The save persisted the locale (useUpdateMe → locale.set), but the
+        // URL is the source of truth for the displayed language. Swap its
+        // `/en|/de` prefix so the choice sticks across the next navigation
+        // (the seeding guard would otherwise re-apply the URL's old locale).
+        if (route.params['lang'] !== localeSelected.value) {
+            void router.replace({
+                params: { ...route.params, lang: localeSelected.value },
+                query: route.query,
+                hash: route.hash,
+            })
+        }
     } catch (e: unknown) {
         errorMsg.value = e instanceof Error ? e.message : 'unknown error'
     }

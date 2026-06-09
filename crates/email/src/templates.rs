@@ -62,10 +62,11 @@ impl<'a> Chrome<'a> {
 
 /// Build the privacy-policy URL from the web app's public base URL.
 ///
-/// The route is `/data-policy` (see the FE router); we trim a trailing slash
-/// off the base so we never emit a double slash.
-fn privacy_url(app_url: &str) -> String {
-    format!("{}/data-policy", app_url.trim_end_matches('/'))
+/// The route is locale-prefixed `/{lang}/data-policy` (see the FE router), so
+/// the footer link in every email lands on the recipient's-language legal
+/// page rather than bouncing through a redirect.
+fn privacy_url(locale: Locale, app_url: &str) -> String {
+    locale.link(app_url, "/data-policy")
 }
 
 // ── magic link ──────────────────────────────────────────────────────────
@@ -351,7 +352,7 @@ pub fn render_magic_link(
     name: Option<&str>,
 ) -> Result<RenderedEmail, askama::Error> {
     let name = name.unwrap_or("");
-    let privacy = privacy_url(app_url);
+    let privacy = privacy_url(locale, app_url);
     let chrome = Chrome::new(locale, app_url, &privacy);
     let (subject, text, html) = match locale {
         Locale::En => (
@@ -381,7 +382,7 @@ pub fn render_welcome(
     app_url: &str,
     link: &str,
 ) -> Result<RenderedEmail, askama::Error> {
-    let privacy = privacy_url(app_url);
+    let privacy = privacy_url(locale, app_url);
     let chrome = Chrome::new(locale, app_url, &privacy);
     let (subject, text, html) = match locale {
         Locale::En => (
@@ -412,7 +413,7 @@ pub fn render_invite(
     inviter_name: &str,
     link: &str,
 ) -> Result<RenderedEmail, askama::Error> {
-    let privacy = privacy_url(app_url);
+    let privacy = privacy_url(locale, app_url);
     let chrome = Chrome::new(locale, app_url, &privacy);
     let (subject, text, html) = match locale {
         Locale::En => (
@@ -444,7 +445,7 @@ pub fn render_email_change(
     name: Option<&str>,
 ) -> Result<RenderedEmail, askama::Error> {
     let name = name.unwrap_or("");
-    let privacy = privacy_url(app_url);
+    let privacy = privacy_url(locale, app_url);
     let chrome = Chrome::new(locale, app_url, &privacy);
     let (subject, text, html) = match locale {
         Locale::En => (
@@ -475,7 +476,7 @@ pub fn render_owner_transfer_owner(
     to_user_display_name: &str,
     link: &str,
 ) -> Result<RenderedEmail, askama::Error> {
-    let privacy = privacy_url(app_url);
+    let privacy = privacy_url(locale, app_url);
     let chrome = Chrome::new(locale, app_url, &privacy);
     let (subject, text, html) = match locale {
         Locale::En => (
@@ -508,7 +509,7 @@ pub fn render_owner_transfer_admin(
     to_user_display_name: &str,
     link: &str,
 ) -> Result<RenderedEmail, askama::Error> {
-    let privacy = privacy_url(app_url);
+    let privacy = privacy_url(locale, app_url);
     let chrome = Chrome::new(locale, app_url, &privacy);
     let (subject, text, html) = match locale {
         Locale::En => (
@@ -579,7 +580,7 @@ pub fn render_reminder_digest(
             format!("🎂 In {n} days: {count} family date{}", if count == 1 { "" } else { "s" })
         }
     };
-    let privacy = privacy_url(app_url);
+    let privacy = privacy_url(locale, app_url);
     let chrome = Chrome::new(locale, app_url, &privacy);
     let (text, html) = match locale {
         Locale::En => (
@@ -652,6 +653,16 @@ mod tests {
     }
 
     #[test]
+    fn footer_privacy_link_is_locale_prefixed() {
+        // The footer's privacy link must carry the recipient's locale so it
+        // lands on the right-language legal page (no redirect hop).
+        let en = render_magic_link(Locale::En, APP, "https://app/en/c/xyz", None).unwrap();
+        assert!(en.html.contains("https://app/en/data-policy"));
+        let de = render_magic_link(Locale::De, APP, "https://app/de/c/xyz", None).unwrap();
+        assert!(de.html.contains("https://app/de/data-policy"));
+    }
+
+    #[test]
     fn renders_magic_link_greets_known_user_by_name() {
         let email = render_magic_link(Locale::En, APP, "https://app/c/xyz", Some("Anna")).unwrap();
         assert!(email.text.contains("Hello Anna,"));
@@ -686,7 +697,8 @@ mod tests {
         assert!(email.html.contains("https://app/c/new"));
         assert!(email.html.contains("cid:logo"));
         assert!(email.html.contains("My Family Tree"));
-        assert!(email.html.contains("https://app/data-policy"));
+        // Privacy link is locale-prefixed (EN here).
+        assert!(email.html.contains("https://app/en/data-policy"));
     }
 
     #[test]
@@ -695,9 +707,10 @@ mod tests {
         assert_eq!(email.subject, "Willkommen bei My Family Tree");
         assert!(email.text.contains("gültig"));
         assert!(email.html.contains("https://app/c/new"));
-        // Trailing slash on the base URL must not double up in the privacy link.
-        assert!(email.html.contains("https://app/data-policy"));
-        assert!(!email.html.contains("https://app//data-policy"));
+        // Locale-prefixed (DE) privacy link; a trailing slash on the base URL
+        // must not double up.
+        assert!(email.html.contains("https://app/de/data-policy"));
+        assert!(!email.html.contains("https://app//de/data-policy"));
     }
 
     #[test]

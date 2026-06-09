@@ -58,8 +58,10 @@ export function useThemeMode(): void {
             html.setAttribute('data-theme', resolved)
         }
         const wantedVuetify = resolved === 'dark' ? VUETIFY_DARK : VUETIFY_LIGHT
+        // `theme.change(name)` is Vuetify's supported setter; assigning to
+        // `theme.global.name.value` directly is deprecated (and logs a warn).
         if (vuetifyTheme.global.name.value !== wantedVuetify) {
-            vuetifyTheme.global.name.value = wantedVuetify
+            vuetifyTheme.change(wantedVuetify)
         }
     }
 

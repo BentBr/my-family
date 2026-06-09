@@ -38,17 +38,19 @@ test.describe('FE account flow', () => {
 
         await page.getByTestId('account-save').click()
 
-        // Reload and verify the backend really persisted the change.
+        // Saving a locale change re-mints the session token (useUpdateMe →
+        // auth.refresh) and swaps the URL prefix, so the choice now persists
+        // across a reload AND the UI is German afterwards.
+        await expect(page).toHaveURL(/\/de\/account$/, { timeout: 10_000 })
         await page.reload()
+        await expect(page).toHaveURL(/\/de\/account$/)
         await expect(nameInput).toHaveValue('Anna Müller')
-        // The access JWT carries the locale claim from sign-in and is not
-        // re-issued by PATCH /users/me, so i18n stays English after reload.
-        // The localeSelected model is hydrated from /users/me (= "de"), and
-        // v-select's input renders the option's title under the current UI
-        // locale — "German" in English. That's the proof the backend kept
-        // the change without depending on a JWT-refresh side effect.
+        // The select renders the option's title under the NOW-German UI, so
+        // the German label for "de" is "Deutsch" (it was "German" only while
+        // the UI was still English — the pre-fix behaviour). Seeing "Deutsch"
+        // after a reload is the proof the change persisted (DB + re-minted JWT).
         const localeInput = page.getByTestId('account-locale').locator('input').first()
-        await expect(localeInput).toHaveValue('German')
+        await expect(localeInput).toHaveValue('Deutsch')
     })
 
     test('email change roundtrip', async ({ page }) => {

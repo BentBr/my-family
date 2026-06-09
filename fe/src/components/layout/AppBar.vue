@@ -26,6 +26,7 @@ import AccountControl from '@/components/common/AccountControl.vue'
 import BrandLogo from '@/components/common/BrandLogo.vue'
 import LanguageMenu from '@/components/common/LanguageMenu.vue'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
+import { useLocalizedPath } from '@/composables/useLocalizedPath'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 
@@ -35,6 +36,9 @@ const auth = useAuthStore()
 const ui = useUiStore()
 const route = useRoute()
 const { smAndDown } = useDisplay()
+// Brand logo targets the locale-prefixed home — the AppBar renders in
+// the PRERENDERED public pages, so the anchor must carry the locale.
+const localized = useLocalizedPath()
 
 // On phones the right-side cluster has very little room. Theme +
 // language fold into the AccountControl dropdown instead so the
@@ -62,7 +66,7 @@ const showFamilySwitcher = computed(() => auth.status === 'authenticated' && has
     -->
     <v-app-bar elevation="1" density="comfortable" data-testid="app-bar" class="app-bar app-bar--padded">
         <v-app-bar-nav-icon v-if="showSidebarToggle" icon="menu" data-testid="nav-toggle" @click="ui.toggleSidebar" />
-        <BrandLogo to="/" size="md" />
+        <BrandLogo :to="localized('/')" size="md" />
         <v-spacer />
         <FamilySwitcher v-if="showFamilySwitcher" class="mr-2" />
         <ThemeToggle v-if="showInlineTools" class="mr-1" />

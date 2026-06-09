@@ -17,6 +17,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useLocalizedPath } from '@/composables/useLocalizedPath'
 import { currentResolvedTheme } from '@/composables/useThemeMode'
 import { useUiStore } from '@/stores/ui'
 
@@ -32,6 +33,9 @@ import treeExampleDark1280 from '@/assets/brand/tree-example-dark-1280.webp'
 
 const { t } = useI18n()
 const ui = useUiStore()
+// CTA targets carry the active locale in the PRERENDERED HTML so
+// crawlers / no-JS clients keep their language without a redirect hop.
+const localized = useLocalizedPath()
 
 // Tree-screenshot URL pair — swaps between the light and dark variants
 // emitted by `pnpm generate:images` (the script reads
@@ -70,12 +74,17 @@ const features: Feature[] = [
                         color="primary"
                         variant="flat"
                         size="large"
-                        to="/auth/sign-in"
+                        :to="localized('/auth/sign-in')"
                         data-testid="home-cta-primary"
                     >
                         {{ t('public.home.hero.ctaPrimary') }}
                     </v-btn>
-                    <v-btn variant="text" size="large" to="/auth/sign-in" data-testid="home-cta-secondary">
+                    <v-btn
+                        variant="text"
+                        size="large"
+                        :to="localized('/auth/sign-in')"
+                        data-testid="home-cta-secondary"
+                    >
                         {{ t('public.home.hero.ctaSecondary') }}
                     </v-btn>
                 </div>
@@ -129,7 +138,13 @@ const features: Feature[] = [
         <!-- Final CTA -->
         <section class="home__cta-footer">
             <h2 class="home__cta-title display">{{ t('public.home.cta.title') }}</h2>
-            <v-btn color="primary" variant="flat" size="x-large" to="/auth/sign-in" data-testid="home-cta-footer">
+            <v-btn
+                color="primary"
+                variant="flat"
+                size="x-large"
+                :to="localized('/auth/sign-in')"
+                data-testid="home-cta-footer"
+            >
                 {{ t('public.home.cta.button') }}
             </v-btn>
         </section>

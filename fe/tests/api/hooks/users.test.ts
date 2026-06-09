@@ -71,19 +71,26 @@ describe('useMe', () => {
 })
 
 describe('useUpdateMe', () => {
-    it('PATCHes /users/me and syncs locale + auth on success', async () => {
+    it('PATCHes /users/me, syncs locale + auth, and re-mints the token on a locale change', async () => {
         mocked.PATCH.mockResolvedValueOnce({
             data: { data: { display_name: 'Z', locale: 'de' } },
+            error: undefined,
+        })
+        // The locale change triggers auth.refresh() so the JWT (which embeds
+        // locale at mint time) is re-issued from the updated DB row and the
+        // choice survives a reload.
+        mocked.POST.mockResolvedValueOnce({
+            data: { data: { user_id: 'u', email: 'a@b', locale: 'de', families: [] } },
             error: undefined,
         })
         const { result } = makeHookWrapper(() => useUpdateMe())
         await result.mutateAsync({ display_name: 'Z', locale: 'de' })
         const locale = useLocaleStore()
-        const auth = useAuthStore()
         expect(locale.locale).toBe('de')
-        // auth was anonymous so patchUser no-ops on user; that's fine. We only
-        // need to know locale.set fired.
-        expect(auth.status).toBe('anonymous')
+        // The token re-mint went through /auth/refresh (fire-and-forget); flush
+        // microtasks so the POST is observed.
+        await Promise.resolve()
+        expect(mocked.POST).toHaveBeenCalledWith('/api/v1/auth/refresh')
     })
 
     it('skips locale.set when server locale is not en/de', async () => {

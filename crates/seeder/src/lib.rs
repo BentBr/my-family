@@ -194,6 +194,7 @@ async fn mint_magic_links(
             UserId::from_uuid(uid),
             email,
             &cfg.web.public_url,
+            my_fam_tree_email::Locale::En,
             cfg.magic_link.ttl_seconds,
         )
         .await?;

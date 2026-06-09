@@ -507,8 +507,10 @@ pub async fn invite(
         .await
         .map_err(internal)?;
 
-    let link = format!("{}/invite/accept?token={}", state.cfg.web.public_url, token);
+    // Locale-prefixed for the inviter's language (the invitee may not have an
+    // account yet, so the inviter's preference is the best signal we have).
     let locale = EmailLocale::from_str_or_en(&claims.locale);
+    let link = locale.link(&state.cfg.web.public_url, &format!("/invite/accept?token={token}"));
     let email_msg =
         render_invite(locale, &state.cfg.web.public_url, &active.name, &claims.email, &link)
             .map_err(internal)?;

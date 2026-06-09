@@ -7,15 +7,18 @@ import PublicFooter from '@/components/layout/PublicFooter.vue'
 import { i18n } from '@/i18n'
 
 async function mountFooter() {
+    // Locale-prefixed like the real route table — the footer's legal
+    // links carry the active locale (they land in prerendered HTML).
+    const LANG = ':lang(en|de)'
     const router = createRouter({
         history: createMemoryHistory(),
         routes: [
-            { path: '/', component: { template: '<div />' } },
-            { path: '/imprint', component: { template: '<div />' } },
-            { path: '/data-policy', component: { template: '<div />' } },
+            { path: `/${LANG}`, component: { template: '<div />' } },
+            { path: `/${LANG}/imprint`, component: { template: '<div />' } },
+            { path: `/${LANG}/data-policy`, component: { template: '<div />' } },
         ],
     })
-    await router.push('/')
+    await router.push('/en')
     await router.isReady()
     return mount(PublicFooter, { global: { plugins: [createPinia(), i18n, router] } })
 }
@@ -25,14 +28,14 @@ describe('PublicFooter', () => {
         setActivePinia(createPinia())
     })
 
-    it('links imprint + data-policy + shows the locale label', async () => {
+    it('links the LOCALE-PREFIXED imprint + data-policy + shows the locale label', async () => {
         const w = await mountFooter()
         const imprint = w.find('[data-testid="footer-imprint"]')
         const dp = w.find('[data-testid="footer-data-policy"]')
         expect(imprint.exists()).toBe(true)
         expect(dp.exists()).toBe(true)
-        expect(imprint.attributes('href')).toBe('/imprint')
-        expect(dp.attributes('href')).toBe('/data-policy')
+        expect(imprint.attributes('href')).toBe('/en/imprint')
+        expect(dp.attributes('href')).toBe('/en/data-policy')
         expect(w.text()).toContain('English')
     })
 })

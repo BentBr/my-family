@@ -27,6 +27,7 @@ import { useDisplay } from 'vuetify'
 import { useMe } from '@/api/hooks/users'
 import DefaultAvatar from '@/components/common/DefaultAvatar.vue'
 import { currentResolvedTheme } from '@/composables/useThemeMode'
+import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 import { useAuthStore } from '@/stores/auth'
 import { useLocaleStore, type SupportedLocale } from '@/stores/locale'
 import { useUiStore } from '@/stores/ui'
@@ -77,10 +78,11 @@ const langChoices: LangChoice[] = [
     { value: 'en', label: 'English', flag: '🇬🇧' },
     { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
 ]
-function pickLocale(next: SupportedLocale): void {
-    if (next === localeStore.locale) return
-    localeStore.set(next)
-}
+// Shared with the desktop LanguageMenu: flips the store, swaps the URL's
+// `/en`|`/de` prefix in place (the URL is the locale's source of truth),
+// and writes the preference to /users/me for signed-in users. The mobile
+// fold-in used to update only the store — stale URL, no persistence.
+const pickLocale: (next: SupportedLocale) => void = useLocaleSwitch()
 
 async function signOut(): Promise<void> {
     await auth.logout()

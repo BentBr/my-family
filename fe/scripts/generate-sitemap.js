@@ -65,8 +65,11 @@ ${entries}
 }
 
 function buildIndex(localeSitemaps, today) {
+    // Reference the gzipped per-locale sitemaps. nginx serves `*.xml.gz`
+    // with `Content-Encoding: gzip` + `Content-Type: application/xml`, so
+    // crawlers fetch a compressed-on-the-wire, correctly-decoded document.
     const entries = localeSitemaps
-        .map((s) => `  <sitemap><loc>${baseUrl}/${s}</loc><lastmod>${today}</lastmod></sitemap>`)
+        .map((s) => `  <sitemap><loc>${baseUrl}/${s}.gz</loc><lastmod>${today}</lastmod></sitemap>`)
         .join('\n')
     return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -85,7 +88,7 @@ function buildRobots() {
 Allow: /
 ${disallowLines}
 
-Sitemap: ${baseUrl}/sitemap.xml
+Sitemap: ${baseUrl}/sitemap.xml.gz
 `
 }
 

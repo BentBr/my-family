@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.21](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.20...core-v0.1.21) (2026-06-16)
+
+
+### Bug Fixes
+
+* **sitemap:** link robots and index to gzipped sitemaps ([925128b](https://github.com/BentBr/my-fam-tree/commit/925128b5ae36da0f7b76313716335baa0f935435))
+* **sitemap:** link robots and index to gzipped sitemaps ([86ef24a](https://github.com/BentBr/my-fam-tree/commit/86ef24a5329d47fd092bab37ebfe74e7621654c1))
+
 ## [0.1.20](https://github.com/BentBr/my-fam-tree/compare/core-v0.1.19...core-v0.1.20) (2026-06-09)
 
 
